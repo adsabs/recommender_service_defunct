@@ -1,0 +1,8 @@
+Flask>=0.9
+Flask-RESTful
+werkzeug
+psycopg2
+SQLAlchemy
+simplejson>=3.3.0
+multiprocessing
+requests
