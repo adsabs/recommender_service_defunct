@@ -1,7 +1,8 @@
 import os
 from flask import Flask, g
-from views import blueprint, Resources, UnixTime, PrintArg, ExampleApiUsage, Recommender
+from views import blueprint, Resources, UnixTime, PrintArg, ExampleApiUsage, Recommender, Test
 from flask.ext.restful import Api
+from client import Client
 
 def create_app():
   api = Api(blueprint)
@@ -9,8 +10,10 @@ def create_app():
   api.add_resource(UnixTime, '/time')
   api.add_resource(PrintArg,'/print/<string:arg>')
   api.add_resource(ExampleApiUsage,'/search')
-  api.add_resource(Recommender, '/recommender/<string:bibcode>')
-
+  api.add_resource(Recommender, '/<string:bibcode>')
+# For testing. Will be removed
+  api.add_resource(Test, '/test/<string:bibcode>/<string:goal>')
+  
   app = Flask(__name__, static_folder=None)
   app.url_map.strict_slashes = False
   app.config.from_object('recommender.config')

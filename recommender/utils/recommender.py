@@ -9,6 +9,7 @@ import sys
 import time
 from datetime import datetime
 import random as rndm
+import simplejson as json
 from itertools import groupby
 import urllib
 import requests
@@ -17,7 +18,7 @@ import operator
 import cPickle
 from .definitions import ASTkeywords
 from multiprocessing import Process, Queue, cpu_count
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import relationship, sessionmaker
@@ -25,6 +26,9 @@ from sqlalchemy import create_engine
 from flask import current_app
 
 __all__ = ['get_recommendations']
+
+_basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
 # Helper functions
 # Data conversion
 def flatten(items):
@@ -131,7 +135,7 @@ class Reads(Base):
     __tablename__='reads'
     id = Column(Integer,primary_key=True)
     cookie = Column(String,nullable=False,index=True)
-    reads = Column(postgresql.ARRAY(String), index=True)
+    reads = Column(postgresql.ARRAY(String))
 
 class Clustering(Base):
     __tablename__='clustering'
@@ -145,7 +149,7 @@ class Clusters(Base):
     __tablename__='clusters'
     id = Column(Integer,primary_key=True)
     cluster = Column(Integer,index=True)
-    members  = Column(postgresql.ARRAY(string))
+    members  = Column(postgresql.ARRAY(String))
     centroid = Column(postgresql.ARRAY(Float))
 
 # Data retrieval
@@ -158,14 +162,19 @@ class DistanceHarvester(Process):
         Process.__init__(self)
         self.task_queue = task_queue
         self.result_queue = result_queue
+        engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
+        Base.metadata.create_all(engine)
+        DBSession = sessionmaker(bind=engine)
+        self.session = DBSession()
     def run(self):
         while True:
             data = self.task_queue.get()
             if data is None:
                 break
             try:
-                res = self.paper_coll.find_one({'paper':data[0]})
-                cvect = cPickle.loads(res['vector_low'])
+                result = self.session.query(Clustering).filter(Clustering.bibcode==data[0]).one()
+                clustering_data = json.dumps(result, cls=AlchemyEncoder)
+                cvect = np.array(clustering_data['vector_low'])
                 dist = np.linalg.norm(data[1]-cvect)
             except:
                 dist = 999999
@@ -196,8 +205,8 @@ class CitationListHarvester(Process):
                 except:
                     citations = []
                 self.result_queue.put({'citations':citations})
-            except Exception, e:
-                self.result_queue.put("Exception! Postgres metrics data query for %s blew up (%s)" % (bibcode,e))
+            except:
+                self.result_queue.put({'citations':[]})
         return
 
 def get_normalized_keywords(bibc):
@@ -226,10 +235,10 @@ def get_article_data(biblist, check_references=True):
     '''
     list = " OR ".join(map(lambda a: "bibcode:%s"%a, biblist))
     q = '%s' % list
-    fl= ['bibcode','title','first_author','keyword_norm','reference','citation_count','pubdate']
+    fl= 'bibcode,title,first_author,keyword_norm,reference,citation_count,pubdate'
     try:
         # Get the information from Solr
-        resp = solr_req(current_app.config['SOLRQUERY_URL'], q=q, fl = fl, sort=[["pubdate", "desc"], ["bibcode", "desc"]], rows=current_app.config['MAX_HITS'])
+        resp = solr_req(current_app.config['SOLRQUERY_URL'], q=q, fl = fl, sort="pubdate desc, bibcode desc", rows=current_app.config['MAX_HITS'])
     except SolrQueryError, e:
         app.logger.error("Solr article data query for %s blew up (%s)" % (str(biblist),e))
         raise
@@ -305,13 +314,12 @@ def project_paper(pvector,pcluster=None):
     '''
     if not pcluster:
         pcluster = -1
-#    client = pymongo.MongoClient(config.RECOMMENDER_MONGO_HOST,config.RECOMMENDER_MONGO_PORT)
-#    db = client.recommender
-#    db.authenticate(config.RECOMMENDER_MONGO_USER,config.RECOMMENDER_MONGO_PASSWORD)
-    collection = db.matrices
-    res = collection.find_one({'cluster':int(pcluster)})
-    projection = cPickle.loads(res['projection_matrix'])
-    PaperVector = array(pvector)
+    matrix_file = "%s/%s/clusterprojection_%s.mat.npy" % (_basedir,current_app.config['CLUSTER_PROJECTION_PATH'], pcluster)
+    try:
+        projection = np.load(matrix_file)
+    except Exeption,err:
+        sys.stderr.write('Failed to load projection matrix for cluster %s (%s)'%(pclust,err))
+    PaperVector = np.array(pvector)
     try:
         coords = np.dot(PaperVector,projection)
     except:
@@ -323,49 +331,41 @@ def find_paper_cluster(pvec,bibc):
     Given a paper vector of normalized keyword frequencies, reduced to 100 dimensions, find out
     to which cluster this paper belongs
     '''
-#    client = pymongo.MongoClient(config.RECOMMENDER_MONGO_HOST,config.RECOMMENDER_MONGO_PORT)
-#    db = client.recommender
-#    db.authenticate(config.RECOMMENDER_MONGO_USER,config.RECOMMENDER_MONGO_PASSWORD)
-#    collection = db.clusters
-    res = collection.find_one({'members':bibc})
+    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
+    Base.metadata.create_all(engine)
+    DBSession = sessionmaker(bind=engine)
+    session = DBSession()
+    try:
+        res = session.query(Clusters).filter(Clusters.members.any(bibc)).one()
+        cluster_data = json.dumps(result, cls=AlchemyEncoder)
+    except:
+        res = None
+
     if res:
-        return res['cluster']
+        return cluster_data['cluster']
 
     min_dist = 9999
-    clusters = collection.find()
+    res = session.query(Clusters).all()
+    clusters = json.loads(json.dumps(res, cls=AlchemyEncoder))
     for entry in clusters:
-        centroid = cPickle.loads(entry['centroid'])
-        dist = np.linalg.norm(pvec-array(centroid))
+        centroid = entry['centroid']
+        dist = np.linalg.norm(pvec-np.array(centroid))
         if dist < min_dist:
             cluster = entry['cluster']
         min_dist = min(dist, min_dist)
     return str(cluster)
-
-def find_cluster_papers(pcluster):
-    '''
-    Given a cluster ID, retrieve the papers belonging to this cluster
-    '''
-    result = []
-#    client = pymongo.MongoClient(config.RECOMMENDER_MONGO_HOST,config.RECOMMENDER_MONGO_PORT)
-#    db = client.recommender
-#    db.authenticate(config.RECOMMENDER_MONGO_USER,config.RECOMMENDER_MONGO_PASSWORD)
-#    cluster_coll = db.recent_paper_clustering
-    entries = cluster_coll.find({'cluster':int(pcluster)})
-    for entry in entries:
-        result.append(entry)
-    return result
 
 def find_closest_cluster_papers(pcluster,vec):
     '''
     Given a cluster and a paper (represented by its vector), which are the
     papers in the cluster closest to this paper?
     '''
-#    client = pymongo.MongoClient(config.RECOMMENDER_MONGO_HOST,config.RECOMMENDER_MONGO_PORT)
-#    db = client.recommender
-#    db.authenticate(config.RECOMMENDER_MONGO_USER,config.RECOMMENDER_MONGO_PASSWORD)
-#    cluster_coll = db.clusters
-#    paper_coll = client.recommender.clustering
-    res = cluster_coll.find_one({'cluster':int(pcluster)})
+    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
+    Base.metadata.create_all(engine)
+    DBSession = sessionmaker(bind=engine)
+    session = DBSession()
+    result = session.query(Clusters).filter(Clusters.cluster==int(pcluster)).one()
+    res = json.loads(json.dumps(result, cls=AlchemyEncoder))
     # We will now calculate the distances of the new paper all cluster members
     # This is done in parallel using the DistanceHarvester
     threads = cpu_count()
@@ -387,18 +387,21 @@ def find_closest_cluster_papers(pcluster,vec):
         num_jobs -= 1
     d = sorted(distances, key=operator.itemgetter(1),reverse=False)
 
-    return map(lambda a: a[0],d[:current_app.config['RECOMMENDER_MAX_NEIGHBORS']])
+    return map(lambda a: a[0],d[:current_app.config['MAX_NEIGHBORS']])
 
 def find_recommendations(G,remove=None):
     '''Given a set of papers (which is the set of closest papers within a given
     cluster to the paper for which recommendations are required), find recommendations.'''
-#    client = pymongo.MongoClient(config.RECOMMENDER_MONGO_HOST,config.RECOMMENDER_MONGO_PORT)
-#    db = client.recommender
-#    db.authenticate(config.RECOMMENDER_MONGO_USER,config.RECOMMENDER_MONGO_PASSWORD)
-#    reads_coll = db.reads
     # get all reads series by frequent readers who read
     # any of the closest papers (stored in G)
-    res = reads_coll.find({'reads':{'$in':G}})
+    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
+    Base.metadata.create_all(engine)
+    DBSession = sessionmaker(bind=engine)
+    session = DBSession()
+    res = []
+    for paper in G:
+        result = session.query(Reads).filter(Reads.reads.any(paper)).all()
+        res += json.loads(json.dumps(result, cls=AlchemyEncoder))
     # lists to record papers read just before and after a paper
     # was read from those closest papers, and those to calculate
     # associated frequency distributions
