@@ -3,61 +3,12 @@ from flask.ext.restful import Resource
 import time
 
 from utils.recommender import get_recommendations
-# testing
-from utils.recommender import make_paper_vector
-from utils.recommender import project_paper
-from utils.recommender import find_paper_cluster
-from utils.recommender import project_paper
-from utils.recommender import find_closest_cluster_papers
-from utils.recommender import find_recommendations
-from utils.recommender import get_recommendations
 
 blueprint = Blueprint(
       'recommender',
       __name__,
       static_folder=None,
 )
-
-class Test(Resource):
-    """"Only for testing purposes. Will be removedß"""
-    scopes = 'oauth:recommender:read'
-    def get(self, bibcode, goal):
-        if goal == 'vector':
-            return make_paper_vector(bibcode)
-        elif goal == 'project':
-            vec = make_paper_vector(bibcode)
-            pvec = project_paper(vec)
-            return list(pvec)
-        elif goal == 'cluster':
-            vec = make_paper_vector(bibcode)
-            pvec = project_paper(vec)
-            pclust = find_paper_cluster(pvec,bibcode)
-            return pclust
-        elif goal == 'clustervec':
-            vec = make_paper_vector(bibcode)
-            pvec = project_paper(vec)
-            pclust = find_paper_cluster(pvec,bibcode)
-            cvec = project_paper(pvec,pcluster=pclust)
-            return list(cvec)
-        elif goal == 'closest':
-            vec = make_paper_vector(bibcode)
-            pvec = project_paper(vec)
-            pclust = find_paper_cluster(pvec,bibcode)
-            cvec = project_paper(pvec,pcluster=pclust)
-            close = find_closest_cluster_papers(pclust,cvec)
-            return close
-        elif goal == 'recommend':
-            vec = make_paper_vector(bibcode)
-            pvec = project_paper(vec)
-            pclust = find_paper_cluster(pvec,bibcode)
-            cvec = project_paper(pvec,pcluster=pclust)
-            close = find_closest_cluster_papers(pclust,cvec)
-            R = find_recommendations(close,remove=bibcode)
-            return R
-        elif goal == 'final':
-            return get_recommendations(bibcode)
-        else:
-            return {'msg': 'The goal "%s" is not available'%goal}, 500
 
 class Recommender(Resource):
     """"Return recommender results for a given bibcode"""
