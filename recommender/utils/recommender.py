@@ -111,7 +111,7 @@ class AlchemyEncoder(json.JSONEncoder):
 
 class MetricsModel(db.Model):
   __tablename__='metrics'
-
+  __bind_key__ = 'metrics'
   id = Column(Integer,primary_key=True)
   bibcode = Column(String,nullable=False,index=True)
   refereed = Column(Boolean)
@@ -131,12 +131,14 @@ class MetricsModel(db.Model):
 
 class Reads(db.Model):
     __tablename__='reads'
+    __bind_key__ = 'recommender'
     id = Column(Integer,primary_key=True)
     cookie = Column(String,nullable=False,index=True)
     reads = Column(postgresql.ARRAY(String))
 
 class Clustering(db.Model):
     __tablename__='clustering'
+    __bind_key__ = 'recommender'
     id = Column(Integer,primary_key=True)
     bibcode = Column(String,nullable=False,index=True)
     cluster = Column(Integer)
@@ -145,6 +147,7 @@ class Clustering(db.Model):
 
 class Clusters(db.Model):
     __tablename__='clusters'
+    __bind_key__ = 'recommender'
     id = Column(Integer,primary_key=True)
     cluster = Column(Integer,index=True)
     members  = Column(postgresql.ARRAY(String))
@@ -329,7 +332,6 @@ def find_paper_cluster(pvec,bibc):
         cluster_data = json.dumps(result, cls=AlchemyEncoder)
     except:
         res = None
-
     if res:
         return cluster_data['cluster']
 
