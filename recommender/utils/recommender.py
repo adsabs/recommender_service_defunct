@@ -19,13 +19,12 @@ import cPickle
 from .definitions import ASTkeywords
 from multiprocessing import Process, Queue, cpu_count
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy import create_engine
 from flask import current_app
+from flask.ext.sqlalchemy import SQLAlchemy
 
-__all__ = ['get_recommendations']
+db = SQLAlchemy()
 
 _basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
@@ -109,9 +108,8 @@ class AlchemyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 # Data Model Definitions
-Base = declarative_base()
 
-class MetricsModel(Base):
+class MetricsModel(db.Model):
   __tablename__='metrics'
 
   id = Column(Integer,primary_key=True)
@@ -131,13 +129,13 @@ class MetricsModel(Base):
   an_refereed_citations = Column(postgresql.REAL)
   modtime = Column(DateTime)
 
-class Reads(Base):
+class Reads(db.Model):
     __tablename__='reads'
     id = Column(Integer,primary_key=True)
     cookie = Column(String,nullable=False,index=True)
     reads = Column(postgresql.ARRAY(String))
 
-class Clustering(Base):
+class Clustering(db.Model):
     __tablename__='clustering'
     id = Column(Integer,primary_key=True)
     bibcode = Column(String,nullable=False,index=True)
@@ -145,7 +143,7 @@ class Clustering(Base):
     vector  = Column(postgresql.ARRAY(Float))
     vector_low = Column(postgresql.ARRAY(Float))
 
-class Clusters(Base):
+class Clusters(db.Model):
     __tablename__='clusters'
     id = Column(Integer,primary_key=True)
     cluster = Column(Integer,index=True)
@@ -162,10 +160,7 @@ class DistanceHarvester(Process):
         Process.__init__(self)
         self.task_queue = task_queue
         self.result_queue = result_queue
-        engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-        Base.metadata.create_all(engine)
-        DBSession = sessionmaker(bind=engine)
-        self.session = DBSession()
+        self.session = db.session()
     def run(self):
         while True:
             data = self.task_queue.get()
@@ -189,10 +184,7 @@ class CitationListHarvester(Process):
         Process.__init__(self)
         self.task_queue = task_queue
         self.result_queue = result_queue
-        engine = create_engine(current_app.config['SQLALCHEMY_METRICS_DATABASE_URI'])
-        Base.metadata.create_all(engine)
-        DBSession = sessionmaker(bind=engine)
-        self.session = DBSession()
+        self.session = db.session()
     def run(self):
         while True:
             bibcode = self.task_queue.get()
@@ -331,10 +323,7 @@ def find_paper_cluster(pvec,bibc):
     Given a paper vector of normalized keyword frequencies, reduced to 100 dimensions, find out
     to which cluster this paper belongs
     '''
-    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-    Base.metadata.create_all(engine)
-    DBSession = sessionmaker(bind=engine)
-    session = DBSession()
+    session = db.session()
     try:
         res = session.query(Clusters).filter(Clusters.members.any(bibc)).one()
         cluster_data = json.dumps(result, cls=AlchemyEncoder)
@@ -360,10 +349,7 @@ def find_closest_cluster_papers(pcluster,vec):
     Given a cluster and a paper (represented by its vector), which are the
     papers in the cluster closest to this paper?
     '''
-    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-    Base.metadata.create_all(engine)
-    DBSession = sessionmaker(bind=engine)
-    session = DBSession()
+    session = db.session()
     result = session.query(Clusters).filter(Clusters.cluster==int(pcluster)).one()
     res = json.loads(json.dumps(result, cls=AlchemyEncoder))
     # We will now calculate the distances of the new paper all cluster members
@@ -394,10 +380,7 @@ def find_recommendations(G,remove=None):
     cluster to the paper for which recommendations are required), find recommendations.'''
     # get all reads series by frequent readers who read
     # any of the closest papers (stored in G)
-    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-    Base.metadata.create_all(engine)
-    DBSession = sessionmaker(bind=engine)
-    session = DBSession()
+    session = db.session()
     res = []
     for paper in G:
         result = session.query(Reads).filter(Reads.reads.any(paper)).all()
