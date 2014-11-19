@@ -12,7 +12,6 @@ import random as rndm
 import simplejson as json
 from itertools import groupby
 import urllib
-import requests
 import numpy as np 
 import operator
 import cPickle
@@ -83,12 +82,6 @@ def make_date(datestring):
     if pubdate[1] == 0:
         pubdate[1] = 1
     return datetime(pubdate[0],pubdate[1],1)
-
-def solr_req(url, **kwargs):
-    kwargs['wt'] = 'json'
-    query_params = urllib.urlencode(kwargs)
-    r = requests.get(url, params=query_params)
-    return r.json()
 
 class AlchemyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -213,7 +206,9 @@ def get_normalized_keywords(bibc):
     q = 'bibcode:%s or references(bibcode:%s)' % (bibc,bibc)
     try:
         # Get the information from Solr
-        resp = solr_req(current_app.config['SOLRQUERY_URL'], q=q, fl = 'keyword_norm', rows=current_app.config['MAX_HITS'])
+        params = {'wt':'json', 'q':q, 'fl':'keyword_norm', 'rows': current_app.config['MAX_HITS']}
+        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
+        resp = current_app.client.session.get(query_url).json()
     except SolrQueryError, e:
         app.logger.error("Solr keywords query for %s blew up (%s)" % (bibc,e))
         raise
@@ -233,7 +228,9 @@ def get_article_data(biblist, check_references=True):
     fl= 'bibcode,title,first_author,keyword_norm,reference,citation_count,pubdate'
     try:
         # Get the information from Solr
-        resp = solr_req(current_app.config['SOLRQUERY_URL'], q=q, fl = fl, sort="pubdate desc, bibcode desc", rows=current_app.config['MAX_HITS'])
+        params = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
+        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
+        resp = current_app.client.session.get(query_url).json()
     except SolrQueryError, e:
         app.logger.error("Solr article data query for %s blew up (%s)" % (str(biblist),e))
         raise
