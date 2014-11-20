@@ -8,13 +8,11 @@ import re
 import sys
 import time
 from datetime import datetime
-import random as rndm
 import simplejson as json
 from itertools import groupby
 import urllib
 import numpy as np 
 import operator
-import cPickle
 from .definitions import ASTkeywords
 from multiprocessing import Process, Queue, cpu_count
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float
