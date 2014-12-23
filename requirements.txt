@@ -1,6 +1,7 @@
 Flask>=0.9
 Flask-RESTful
 Flask-SQLAlchemy
+Flask-Testing
 werkzeug
 psycopg2
 SQLAlchemy
