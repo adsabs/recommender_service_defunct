@@ -15,6 +15,7 @@ blueprint = Blueprint(
 class Recommender(Resource):
     """"Return recommender results for a given bibcode"""
     scopes = []
+    rate_limit = [1000,60*60*24]
     def get(self, bibcode):
        try:
            results = get_recommendations(bibcode)
