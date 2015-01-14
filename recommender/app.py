@@ -1,9 +1,10 @@
 import os
+from flask import Blueprint
 from flask import Flask, g
 from views import blueprint, Resources, Recommender
 from flask.ext.restful import Api
 from client import Client
-from utils import db
+from utils.database import db
 
 def create_app(blueprint_only=False):
   app = Flask(__name__, static_folder=None)
