@@ -14,7 +14,7 @@ blueprint = Blueprint(
 )
 
 class Recommender(Resource):
-    """"Return recommender results for a given bibcode"""
+    """Return recommender results for a given bibcode"""
     scopes = []
     rate_limit = [1000,60*60*24]
     decorators = [advertise('scopes','rate_limit')]
