@@ -8,26 +8,24 @@ import re
 import sys
 import time
 from datetime import datetime
-import random as rndm
 import simplejson as json
 from itertools import groupby
+from collections import defaultdict
 import urllib
-import requests
 import numpy as np 
 import operator
-import cPickle
 from .definitions import ASTkeywords
-from multiprocessing import Process, Queue, cpu_count
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy import create_engine
 from flask import current_app
-
-__all__ = ['get_recommendations']
+from flask.ext.sqlalchemy import SQLAlchemy
+from database import db, SQLAlchemy, CoReads, Clusters, Clustering, AlchemyEncoder
 
 _basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
+class SolrQueryError(Exception):
+    pass
 
 # Helper functions
 # Data conversion
@@ -52,21 +50,12 @@ def flatten(items):
             result.append(item)
     return result
 
-def get_before_after(item,list):
-    '''
-    For a given list, given an item, give the items
-    directly before and after that given item
-    '''
-    idx = list.index(item)
-    try:
-        before = list[idx-1]
-    except:
-        before = "NA"
-    try:
-        after = list[idx+1]
-    except:
-        after = "NA"
-    return [before,after]
+def merge_tuples(list1,list2):
+    merged = defaultdict(int)
+    merged.update(list1)
+    for key, value in list2:
+        merged[key] += value
+    return merged.items()
 
 def get_frequencies(l):
     '''
@@ -85,130 +74,7 @@ def make_date(datestring):
         pubdate[1] = 1
     return datetime(pubdate[0],pubdate[1],1)
 
-def solr_req(url, **kwargs):
-    kwargs['wt'] = 'json'
-    query_params = urllib.urlencode(kwargs)
-    r = requests.get(url, params=query_params)
-    return r.json()
-
-class AlchemyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj.__class__, DeclarativeMeta):
-            # an SQLAlchemy class
-            fields = {}
-            for field in [x for x in dir(obj) if not x.startswith('_') and x != 'metadata']:
-                data = obj.__getattribute__(field)
-                try:
-                    json.dumps(data) # this will fail on non-encodable values, like other classes
-                    fields[field] = data
-                except TypeError:
-                    fields[field] = None
-            # a json-encodable dict
-            return fields
-
-        return json.JSONEncoder.default(self, obj)
-
-# Data Model Definitions
-Base = declarative_base()
-
-class MetricsModel(Base):
-  __tablename__='metrics'
-
-  id = Column(Integer,primary_key=True)
-  bibcode = Column(String,nullable=False,index=True)
-  refereed = Column(Boolean)
-  rn_citations = Column(postgresql.REAL)
-  rn_citation_data = Column(postgresql.JSON)
-  rn_citations_hist = Column(postgresql.JSON)
-  downloads = Column(postgresql.ARRAY(Integer))
-  reads = Column(postgresql.ARRAY(Integer))
-  an_citations = Column(postgresql.REAL)
-  refereed_citation_num = Column(Integer)
-  citation_num = Column(Integer)
-  citations = Column(postgresql.ARRAY(String))
-  refereed_citations = Column(postgresql.ARRAY(String))
-  author_num = Column(Integer)
-  an_refereed_citations = Column(postgresql.REAL)
-  modtime = Column(DateTime)
-
-class Reads(Base):
-    __tablename__='reads'
-    id = Column(Integer,primary_key=True)
-    cookie = Column(String,nullable=False,index=True)
-    reads = Column(postgresql.ARRAY(String))
-
-class Clustering(Base):
-    __tablename__='clustering'
-    id = Column(Integer,primary_key=True)
-    bibcode = Column(String,nullable=False,index=True)
-    cluster = Column(Integer)
-    vector  = Column(postgresql.ARRAY(Float))
-    vector_low = Column(postgresql.ARRAY(Float))
-
-class Clusters(Base):
-    __tablename__='clusters'
-    id = Column(Integer,primary_key=True)
-    cluster = Column(Integer,index=True)
-    members  = Column(postgresql.ARRAY(String))
-    centroid = Column(postgresql.ARRAY(Float))
-
 # Data retrieval
-class DistanceHarvester(Process):
-    '''
-    Class to find the distance between a given document, represented
-    by its document vector, and a cluster document
-    '''
-    def __init__(self, task_queue, result_queue):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.result_queue = result_queue
-        engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-        Base.metadata.create_all(engine)
-        DBSession = sessionmaker(bind=engine)
-        self.session = DBSession()
-    def run(self):
-        while True:
-            data = self.task_queue.get()
-            if data is None:
-                break
-            try:
-                result = self.session.query(Clustering).filter(Clustering.bibcode==data[0]).one()
-                clustering_data = json.dumps(result, cls=AlchemyEncoder)
-                cvect = np.array(clustering_data['vector_low'])
-                dist = np.linalg.norm(data[1]-cvect)
-            except:
-                dist = 999999
-            self.result_queue.put((data[0],dist))
-        return
-
-class CitationListHarvester(Process):
-    """
-    Class to allow parallel retrieval of citation data from Mongo
-    """
-    def __init__(self, task_queue, result_queue):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.result_queue = result_queue
-        engine = create_engine(current_app.config['SQLALCHEMY_METRICS_DATABASE_URI'])
-        Base.metadata.create_all(engine)
-        DBSession = sessionmaker(bind=engine)
-        self.session = DBSession()
-    def run(self):
-        while True:
-            bibcode = self.task_queue.get()
-            if bibcode is None:
-                break
-            try:
-                result = self.session.query(MetricsModel).filter(MetricsModel.bibcode==bibcode).one()
-                try:
-                    citations = result.citations
-                except:
-                    citations = []
-                self.result_queue.put({'citations':citations})
-            except:
-                self.result_queue.put({'citations':[]})
-        return
-
 def get_normalized_keywords(bibc):
     '''
     For a given publication, construct a list of normalized keywords of this
@@ -218,7 +84,9 @@ def get_normalized_keywords(bibc):
     q = 'bibcode:%s or references(bibcode:%s)' % (bibc,bibc)
     try:
         # Get the information from Solr
-        resp = solr_req(current_app.config['SOLRQUERY_URL'], q=q, fl = 'keyword_norm', rows=current_app.config['MAX_HITS'])
+        params = {'wt':'json', 'q':q, 'fl':'keyword_norm', 'rows': current_app.config['MAX_HITS']}
+        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
+        resp = current_app.client.session.get(query_url).json()
     except SolrQueryError, e:
         app.logger.error("Solr keywords query for %s blew up (%s)" % (bibc,e))
         raise
@@ -238,7 +106,9 @@ def get_article_data(biblist, check_references=True):
     fl= 'bibcode,title,first_author,keyword_norm,reference,citation_count,pubdate'
     try:
         # Get the information from Solr
-        resp = solr_req(current_app.config['SOLRQUERY_URL'], q=q, fl = fl, sort="pubdate desc, bibcode desc", rows=current_app.config['MAX_HITS'])
+        params = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
+        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
+        resp = current_app.client.session.get(query_url).json()
     except SolrQueryError, e:
         app.logger.error("Solr article data query for %s blew up (%s)" % (str(biblist),e))
         raise
@@ -257,38 +127,23 @@ def get_article_data(biblist, check_references=True):
         return data_dict
 
 def get_citing_papers(**args):
-    # create the queues
-    tasks = Queue()
-    results = Queue()
-    # how many threads are there to be used
-    if 'threads' in args:
-        threads = args['threads']
-    else:
-        threads = cpu_count()
+    citations = []
     bibcodes = args.get('bibcodes',[])
-    # initialize the "harvesters" (each harvester get the citations for a bibcode)
-    harvesters = [ CitationListHarvester(tasks, results) for i in range(threads)]
-    # start the harvesters
-    for b in harvesters:
-        b.start()
-    # put the bibcodes in the tasks queue
-    num_jobs = 0
-    for bib in bibcodes:
-        tasks.put(bib)
-        num_jobs += 1
-    # add some 'None' values at the end of the tasks list, to faciliate proper closure
-    for i in range(threads):
-        tasks.put(None)
-    # gather all results into one citation dictionary
-    cit_list = []
-    while num_jobs:
-        data = results.get()
-        if 'Exception' in data:
-            raise PostgresQueryError, data
-        cit_list += data.get('citations',[])
-        num_jobs -= 1
-    return cit_list
-
+    list = " OR ".join(map(lambda a: "bibcode:%s"%a, bibcodes))
+    q = '%s' % list
+    fl= 'citation'
+    try:
+        # Get the information from Solr
+        params = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
+        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
+        resp = current_app.client.session.get(query_url).json()
+    except SolrQueryError, e:
+        app.logger.error("Solr article data query for %s blew up (%s)" % (str(biblist),e))
+        raise
+    for doc in resp['response']['docs']:
+        if 'citation' in doc:
+            citations += doc['citation']
+    return citations
 #   
 # Helper Functions: Data Processing
 def make_paper_vector(bibc):
@@ -331,21 +186,16 @@ def find_paper_cluster(pvec,bibc):
     Given a paper vector of normalized keyword frequencies, reduced to 100 dimensions, find out
     to which cluster this paper belongs
     '''
-    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-    Base.metadata.create_all(engine)
-    DBSession = sessionmaker(bind=engine)
-    session = DBSession()
     try:
-        res = session.query(Clusters).filter(Clusters.members.any(bibc)).one()
+        res = db.session.query(Clusters).filter(Clusters.members.any(bibc)).one()
         cluster_data = json.dumps(result, cls=AlchemyEncoder)
     except:
         res = None
-
     if res:
         return cluster_data['cluster']
 
     min_dist = 9999
-    res = session.query(Clusters).all()
+    res = db.session.query(Clusters).all()
     clusters = json.loads(json.dumps(res, cls=AlchemyEncoder))
     for entry in clusters:
         centroid = entry['centroid']
@@ -360,76 +210,47 @@ def find_closest_cluster_papers(pcluster,vec):
     Given a cluster and a paper (represented by its vector), which are the
     papers in the cluster closest to this paper?
     '''
-    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-    Base.metadata.create_all(engine)
-    DBSession = sessionmaker(bind=engine)
-    session = DBSession()
-    result = session.query(Clusters).filter(Clusters.cluster==int(pcluster)).one()
-    res = json.loads(json.dumps(result, cls=AlchemyEncoder))
-    # We will now calculate the distances of the new paper all cluster members
-    # This is done in parallel using the DistanceHarvester
-    threads = cpu_count()
-    tasks = Queue()
-    results =Queue()
-    harvesters = [DistanceHarvester(tasks,results) for i in range(threads)]
-    for b in harvesters:
-        b.start()
-    num_jobs = 0
-    for paper in res['members']:
-        tasks.put((paper,vec))
-        num_jobs += 1
-    for i in range(threads):
-        tasks.put(None)
+    # Find the cluster info for the given cluster, in particular the cluster
+    # members (identified by their bibcodes)
+    cluster_info = db.session.query(Clusters).filter(Clusters.cluster==int(pcluster)).one()
+    # For each cluster member, retrieve their lower dimensional coordinate tuple, so that
+    # we can calculate the distance of the current papers (the coordinates are stored in
+    # 'vec')
+    SQL = "SELECT * FROM clustering WHERE bibcode IN (%s)" % ",".join(map(lambda a: "\'%s\'"%a,cluster_info.members))
+    results = db.session.execute(SQL)
     distances = []
-    while num_jobs:
-        data = results.get()
-        distances.append(data)
-        num_jobs -= 1
+    for result in results:
+        paper = result[1]
+        pvect = np.array(result[4])
+        distance = np.linalg.norm(pvect-vec)
+        distances.append((paper,distance))
+    # All distances have been recorded, now sort them by distance (ascending),
+    # and return the appropriate amount
     d = sorted(distances, key=operator.itemgetter(1),reverse=False)
-
     return map(lambda a: a[0],d[:current_app.config['MAX_NEIGHBORS']])
 
 def find_recommendations(G,remove=None):
     '''Given a set of papers (which is the set of closest papers within a given
     cluster to the paper for which recommendations are required), find recommendations.'''
-    # get all reads series by frequent readers who read
-    # any of the closest papers (stored in G)
-    engine = create_engine(current_app.config['SQLALCHEMY_RECOMMENDER_DATABASE_URI'])
-    Base.metadata.create_all(engine)
-    DBSession = sessionmaker(bind=engine)
-    session = DBSession()
-    res = []
-    for paper in G:
-        result = session.query(Reads).filter(Reads.reads.any(paper)).all()
-        res += json.loads(json.dumps(result, cls=AlchemyEncoder))
-    # lists to record papers read just before and after a paper
-    # was read from those closest papers, and those to calculate
-    # associated frequency distributions
-    before = []
+    # Get all coreads by frequent readers who read any of the closest papers (stored in G). 
+    # The coreads consist of frequencies of papers read just before, or just after the
+    # paper in the closest papers.
+    # The alsoreads are taken to be all the coreads taken together
     BeforeFreq = []
-    after  = []
-    AfterFreq = []
-    # list to record papers read by people who read one of the
-    # closest papers
-    alsoreads = []
-    AlsoFreq = []
-    # start processing those reads we determined earlier
-    for item in res:
-        alsoreads += item['reads']
-        overlap = list(set(item['reads']) & set(G))
-        before_after_reads = map(lambda a: get_before_after(a, item['reads']), overlap)
-        for reads_pair in before_after_reads:
-            before.append(reads_pair[0])
-            after.append(reads_pair[1])
-    # remove all "NA"
-    before = filter(lambda a: a != "NA", before)
-    after  = filter(lambda a: a != "NA", after)
+    AfterFreq  = []
+    alsoreads  = []
+    for paper in G:
+        result = db.session.query(CoReads).filter(CoReads.bibcode == paper).first()
+        if not result:
+            continue
+        BeforeFreq = merge_tuples(BeforeFreq, result.coreads['before'])
+        AfterFreq  = merge_tuples(AfterFreq, result.coreads['after'])
+        alsoreads += [x[0] for x in result.coreads['before']]
+        alsoreads += [x[0] for x in result.coreads['after']]
     # remove (if specified) the paper for which we get recommendations
     if remove:
         alsoreads = filter(lambda a: a != remove, alsoreads)
-    # calculate frequency distributions
-    BeforeFreq = get_frequencies(before)
-    AfterFreq  = get_frequencies(after)
+    # calculate frequency distribution of alsoreads
     AlsoFreq  = get_frequencies(alsoreads)
     # get publication data for the top 100 most alsoread papers
     top100 = map(lambda a: a[0], AlsoFreq)
@@ -492,6 +313,8 @@ def get_recommendations(bibcode):
         vec = make_paper_vector(bibcode)
     except Exception, e:
         raise Exception('make_paper_vector: failed to make paper vector (%s): %s' % (bibcode,str(e)))
+    if len(vec) == 0:
+        return None
     try:
         pvec = project_paper(vec)
     except Exception, e:
@@ -511,7 +334,7 @@ def get_recommendations(bibcode):
     try:
         R = find_recommendations(close,remove=bibcode)
     except Exception, e:
-        raise Exception('find_recommendations: failed to find recommendations. paper: %s, closest: %s, error: %s' % (bibcode,str(closest),str(e)))
+        raise Exception('find_recommendations: failed to find recommendations. paper: %s, closest: %s, error: %s' % (bibcode,str(close),str(e)))
     # Get meta data for the recommendations
     try:
         meta_dict = get_article_data(R[1:], check_references=False)
