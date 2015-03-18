@@ -313,6 +313,8 @@ def get_recommendations(bibcode):
         vec = make_paper_vector(bibcode)
     except Exception, e:
         raise Exception('make_paper_vector: failed to make paper vector (%s): %s' % (bibcode,str(e)))
+    if len(vec) == 0:
+        return None
     try:
         pvec = project_paper(vec)
     except Exception, e:
