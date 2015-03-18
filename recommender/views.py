@@ -24,7 +24,7 @@ class Recommender(Resource):
         except Exception, err:
             return {'msg': 'Unable to get results! (%s)' % err}, 500
 
-        if results:
-            return results
+        if 'Error' in results:
+            return results, results['Status Code']
         else:
-            return {'msg': 'No recommendations found'}, 404
+            return results

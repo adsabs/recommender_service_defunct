@@ -18,7 +18,7 @@ from .definitions import ASTkeywords
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.dialects import postgresql
-from flask import current_app
+from flask import current_app, request
 from flask.ext.sqlalchemy import SQLAlchemy
 from database import db, SQLAlchemy, CoReads, Clusters, Clustering, AlchemyEncoder
 
@@ -81,37 +81,41 @@ def get_normalized_keywords(bibc):
     publication and its references
     '''
     keywords = []
+    headers = {'X-Forwarded-Authorization' : request.headers.get('Authorization')}
     q = 'bibcode:%s or references(bibcode:%s)' % (bibc,bibc)
-    try:
-        # Get the information from Solr
-        params = {'wt':'json', 'q':q, 'fl':'keyword_norm', 'rows': current_app.config['MAX_HITS']}
-        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
-        resp = current_app.client.session.get(query_url).json()
-    except SolrQueryError, e:
-        app.logger.error("Solr keywords query for %s blew up (%s)" % (bibc,e))
-        raise
+    # Get the information from Solr
+    solr_args = {'wt':'json', 'q':q, 'fl':'keyword_norm', 'rows': current_app.config['MAX_HITS']}
+    response = current_app.client.session.get(current_app.config.get("SOLR_PATH") , params = solr_args, headers=headers)
+    if response.status_code != 200:
+        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
+    resp = response.json()
     for doc in resp['response']['docs']:
         try:
             keywords += map(lambda a: a.lower(), doc['keyword_norm'])
         except:
             pass
-    return filter(lambda a: a in ASTkeywords, keywords)
+    keywords = filter(lambda a: a in ASTkeywords, keywords)
+    print keywords
+    if len(keywords) == 0:
+        return {"Error": "No keywords were found", "Error Info": "No or unusable keywords in data", "Status Code": "404"}
+    else:
+        return {"Results": keywords}
+        
 
 def get_article_data(biblist, check_references=True):
     '''
     Get basic article metadata for a list of bibcodes
     '''
     list = " OR ".join(map(lambda a: "bibcode:%s"%a, biblist))
+    headers = {'X-Forwarded-Authorization' : request.headers.get('Authorization')}
     q = '%s' % list
     fl= 'bibcode,title,first_author,keyword_norm,reference,citation_count,pubdate'
-    try:
-        # Get the information from Solr
-        params = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
-        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
-        resp = current_app.client.session.get(query_url).json()
-    except SolrQueryError, e:
-        app.logger.error("Solr article data query for %s blew up (%s)" % (str(biblist),e))
-        raise
+    # Get the information from Solr
+    solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
+    response = current_app.client.session.get(current_app.config.get("SOLR_PATH") , params = solr_args, headers=headers)
+    if response.status_code != 200:
+        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
+    resp = response.json()
     results = resp['response']['docs']
     if check_references:
         results = filter(lambda a: 'reference' in a, results)
@@ -130,20 +134,19 @@ def get_citing_papers(**args):
     citations = []
     bibcodes = args.get('bibcodes',[])
     list = " OR ".join(map(lambda a: "bibcode:%s"%a, bibcodes))
+    headers = {'X-Forwarded-Authorization' : request.headers.get('Authorization')}
     q = '%s' % list
     fl= 'citation'
-    try:
-        # Get the information from Solr
-        params = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
-        query_url = current_app.config['SOLRQUERY_URL'] + "/?" + urllib.urlencode(params)
-        resp = current_app.client.session.get(query_url).json()
-    except SolrQueryError, e:
-        app.logger.error("Solr article data query for %s blew up (%s)" % (str(biblist),e))
-        raise
+    # Get the information from Solr
+    solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
+    response = current_app.client.session.get(current_app.config.get("SOLR_PATH") , params = solr_args, headers=headers)
+    if response.status_code != 200:
+        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
+    resp = response.json()
     for doc in resp['response']['docs']:
         if 'citation' in doc:
             citations += doc['citation']
-    return citations
+    return {'Results': citations}
 #   
 # Helper Functions: Data Processing
 def make_paper_vector(bibc):
@@ -152,9 +155,10 @@ def make_paper_vector(bibc):
     its references. Then contruct a vector of normalized frequencies. This is an ordered
     vector, i.e. the first entry is for the first normalized keyword etc etc etc
     '''
-    data = get_normalized_keywords(bibc)
-    if len(data) == 0:
-        return []
+    result = get_normalized_keywords(bibc)
+    if 'Error' in result:
+        return result
+    data = result['Results']
     freq = dict((ASTkeywords.index(x), float(data.count(x))/float(len(data))) for x in data)
     FreqVec = [0.0]*len(ASTkeywords)
     for i in freq.keys():
@@ -255,6 +259,8 @@ def find_recommendations(G,remove=None):
     # get publication data for the top 100 most alsoread papers
     top100 = map(lambda a: a[0], AlsoFreq)
     top100_data = get_article_data(top100)
+    if 'Error' in top100_data:
+        return top100_data
     # For publications with no citations, Solr docs don't have a citation count
     tmpdata = []
     for item in top100_data:
@@ -272,7 +278,10 @@ def find_recommendations(G,remove=None):
     RefFreq = get_frequencies(refs100)
     # get the papers that cite the top 100 most alsoread papers
     # sorted by frequency
-    cits100 = get_citing_papers(bibcodes=top100)
+    data = get_citing_papers(bibcodes=top100)
+    if 'Error' in data:
+        return data
+    cits100 = data['Results']
     CitFreq = get_frequencies(cits100)
     # now we have everything to build the recommendations
     FieldNames = 'Field definitions:'
@@ -313,8 +322,8 @@ def get_recommendations(bibcode):
         vec = make_paper_vector(bibcode)
     except Exception, e:
         raise Exception('make_paper_vector: failed to make paper vector (%s): %s' % (bibcode,str(e)))
-    if len(vec) == 0:
-        return None
+    if 'Error' in vec:
+        return vec
     try:
         pvec = project_paper(vec)
     except Exception, e:
