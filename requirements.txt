@@ -8,3 +8,4 @@ psycopg2
 SQLAlchemy
 simplejson>=3.3.0
 requests
+numpy
