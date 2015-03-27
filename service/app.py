@@ -7,6 +7,20 @@ from flask.ext.discoverer import Discoverer
 from client import Client
 from utils.database import db
 
+def _create_blueprint_():
+  '''
+  Returns a initialized Flask.Blueprint instance;
+  This should be in a closure instead of the top level of a module because
+  a blueprint can only be registered once. Having it at the top level
+  creates a problem with unittests in that the app is created/destroyed at every test,
+  but its blueprint is still the same object which was already registered
+  '''
+  return Blueprint(
+    'recommender',
+    __name__,
+    static_folder=None,
+  )
+
 def create_app(blueprint_only=False):
   app = Flask(__name__, static_folder=None)
 
@@ -18,6 +32,7 @@ def create_app(blueprint_only=False):
     pass
   app.client = Client(app.config['CLIENT'])
 
+  blueprint = _create_blueprint_()
   api = Api(blueprint)
   api.add_resource(Recommender, '/<string:bibcode>')
 

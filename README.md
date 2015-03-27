@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/adsabs/recommender_service.svg?branch=master)](https://travis-ci.org/adsabs/recommender_service)
+
 Flask service implementation of recommender service. Start application with
 
     python wsgi.py

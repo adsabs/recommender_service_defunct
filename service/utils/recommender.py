@@ -24,9 +24,6 @@ from database import db, SQLAlchemy, CoReads, Clusters, Clustering, AlchemyEncod
 
 _basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
-class SolrQueryError(Exception):
-    pass
-
 # Helper functions
 # Data conversion
 def flatten(items):
@@ -65,15 +62,6 @@ def get_frequencies(l):
     tmp = [(k,len(list(g))) for k, g in groupby(sorted(l))]
     return sorted(tmp, key=operator.itemgetter(1),reverse=True)[:100]
 
-def make_date(datestring):
-    '''
-    Turn an ADS publication data into an actual date
-    '''
-    pubdate = map(lambda a: int(a), datestring.split('-'))
-    if pubdate[1] == 0:
-        pubdate[1] = 1
-    return datetime(pubdate[0],pubdate[1],1)
-
 # Data retrieval
 def get_normalized_keywords(bibc):
     '''
@@ -95,7 +83,6 @@ def get_normalized_keywords(bibc):
         except:
             pass
     keywords = filter(lambda a: a in ASTkeywords, keywords)
-    print keywords
     if len(keywords) == 0:
         return {"Error": "No keywords were found", "Error Info": "No or unusable keywords in data", "Status Code": "404"}
     else:
@@ -176,7 +163,7 @@ def project_paper(pvector,pcluster=None):
     matrix_file = "%s/%s/clusterprojection_%s.mat.npy" % (_basedir,current_app.config['CLUSTER_PROJECTION_PATH'], pcluster)
     try:
         projection = np.load(matrix_file)
-    except Exeption,err:
+    except Exception,err:
         sys.stderr.write('Failed to load projection matrix for cluster %s (%s)'%(pclust,err))
     PaperVector = np.array(pvector)
     try:
@@ -190,24 +177,27 @@ def find_paper_cluster(pvec,bibc):
     Given a paper vector of normalized keyword frequencies, reduced to 100 dimensions, find out
     to which cluster this paper belongs
     '''
+    # Let us first check if the bibcode at hand already happens to be in one of the clusters
     try:
         res = db.session.query(Clusters).filter(Clusters.members.any(bibc)).one()
-        cluster_data = json.dumps(result, cls=AlchemyEncoder)
+        cluster = res.cluster
+        members = res.members
     except:
-        res = None
-    if res:
-        return cluster_data['cluster']
-
+        cluster = None
+    # Let's double check that the given bibcode is indeed among the cluster members
+    if cluster and bibc in members:
+        return cluster
+    # Apparently not, so now we need to find the cluster where the distance to the cluster
+    # centroid is the smallest
     min_dist = 9999
     res = db.session.query(Clusters).all()
-    clusters = json.loads(json.dumps(res, cls=AlchemyEncoder))
-    for entry in clusters:
-        centroid = entry['centroid']
+    for entry in res:
+        centroid = entry.centroid
         dist = np.linalg.norm(pvec-np.array(centroid))
         if dist < min_dist:
-            cluster = entry['cluster']
+            cluster = entry.cluster
         min_dist = min(dist, min_dist)
-    return str(cluster)
+    return cluster
 
 def find_closest_cluster_papers(pcluster,vec):
     '''
@@ -249,8 +239,8 @@ def find_recommendations(G,remove=None):
             continue
         BeforeFreq = merge_tuples(BeforeFreq, result.coreads['before'])
         AfterFreq  = merge_tuples(AfterFreq, result.coreads['after'])
-        alsoreads += [x[0] for x in result.coreads['before']]
-        alsoreads += [x[0] for x in result.coreads['after']]
+        alsoreads += flatten([[x[0]]*x[1] for x in result.coreads['before']])
+        alsoreads += flatten([[x[0]]*x[1] for x in result.coreads['after']])
     # remove (if specified) the paper for which we get recommendations
     if remove:
         alsoreads = filter(lambda a: a != remove, alsoreads)
