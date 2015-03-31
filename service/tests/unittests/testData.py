@@ -61,15 +61,12 @@ class TestModels(TestCase):
         # test the CoReads model
         cols_expect = map(type, [ic.type, sc.type, jc.type])
         self.assertEqual([type(c.type) for c in CoReads.__table__.columns], cols_expect)
-        self.assertTrue(CoReads.__bind_key__ == self.app.config.get('RECOMMENDER_BIND_NAME'))
         # test the Clustering model
         cols_expect = map(type, [ic.type, sc.type, ic.type, ac.type, ac.type])
         self.assertEqual([type(c.type) for c in Clustering.__table__.columns], cols_expect)
-        self.assertTrue(Clustering.__bind_key__ == self.app.config.get('RECOMMENDER_BIND_NAME'))
         # test Clusters model
         cols_expect = map(type, [ic.type, ic.type, ac.type, ac.type])
         self.assertEqual([type(c.type) for c in Clusters.__table__.columns], cols_expect)
-        self.assertTrue(Clusters.__bind_key__ == self.app.config.get('RECOMMENDER_BIND_NAME'))
         # test the class that converts a model to a dictionary
         c = CoReads()
         c.id = 1
