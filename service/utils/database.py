@@ -25,12 +25,14 @@ class AlchemyEncoder(json.JSONEncoder):
 
 class CoReads(db.Model):
     __tablename__='coreads'
+    __bind_key__ ='recommender'
     id = Column(Integer,primary_key=True)
     bibcode = Column(String,nullable=False,index=True)
     coreads = Column(postgresql.JSON)
 
 class Clustering(db.Model):
     __tablename__='clustering'
+    __bind_key__ ='recommender'
     id = Column(Integer,primary_key=True)
     bibcode = Column(String,nullable=False,index=True)
     cluster = Column(Integer)
@@ -39,6 +41,7 @@ class Clustering(db.Model):
 
 class Clusters(db.Model):
     __tablename__='clusters'
+    __bind_key__ ='recommender'
     id = Column(Integer,primary_key=True)
     cluster = Column(Integer,index=True)
     members  = Column(postgresql.ARRAY(String))

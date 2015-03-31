@@ -15,16 +15,19 @@ import urllib
 import numpy as np 
 import operator
 from .definitions import ASTkeywords
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float
-from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.dialects import postgresql
 from flask import current_app, request
-from flask.ext.sqlalchemy import SQLAlchemy
-from database import db, SQLAlchemy, CoReads, Clusters, Clustering, AlchemyEncoder
+from database import db, CoReads, Clusters, Clustering, AlchemyEncoder
+from sqlalchemy.sql import text
 
 _basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 # Helper functions
+# A class to help bind in raw SQL queries
+class Bind(object):
+    def __init__(self, bind_key):
+        self.bind = db.get_engine(current_app, bind_key)
+    def execute(self, query, params=None):
+        return db.session.execute(query, params, bind=self.bind)
 # Data conversion
 def flatten(items):
     """flatten(sequence) -> list
@@ -72,8 +75,8 @@ def get_normalized_keywords(bibc):
     headers = {'X-Forwarded-Authorization' : request.headers.get('Authorization')}
     q = 'bibcode:%s or references(bibcode:%s)' % (bibc,bibc)
     # Get the information from Solr
-    solr_args = {'wt':'json', 'q':q, 'fl':'keyword_norm', 'rows': current_app.config['MAX_HITS']}
-    response = current_app.client.session.get(current_app.config.get("SOLR_PATH") , params = solr_args, headers=headers)
+    solr_args = {'wt':'json', 'q':q, 'fl':'keyword_norm', 'rows': current_app.config['RECOMMENDER_MAX_HITS']}
+    response = current_app.config.get('RECOMMENDER_CLIENT').session.get(current_app.config.get("RECOMMENDER_SOLR_PATH") , params = solr_args, headers=headers)
     if response.status_code != 200:
         return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
     resp = response.json()
@@ -98,8 +101,8 @@ def get_article_data(biblist, check_references=True):
     q = '%s' % list
     fl= 'bibcode,title,first_author,keyword_norm,reference,citation_count,pubdate'
     # Get the information from Solr
-    solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
-    response = current_app.client.session.get(current_app.config.get("SOLR_PATH") , params = solr_args, headers=headers)
+    solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['RECOMMENDER_MAX_HITS']}
+    response = current_app.config.get('RECOMMENDER_CLIENT').session.get(current_app.config.get("RECOMMENDER_SOLR_PATH") , params = solr_args, headers=headers)
     if response.status_code != 200:
         return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
     resp = response.json()
@@ -125,8 +128,8 @@ def get_citing_papers(**args):
     q = '%s' % list
     fl= 'citation'
     # Get the information from Solr
-    solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['MAX_HITS']}
-    response = current_app.client.session.get(current_app.config.get("SOLR_PATH") , params = solr_args, headers=headers)
+    solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['RECOMMENDER_MAX_HITS']}
+    response = current_app.config.get('RECOMMENDER_CLIENT').session.get(current_app.config.get("RECOMMENDER_SOLR_PATH") , params = solr_args, headers=headers)
     if response.status_code != 200:
         return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
     resp = response.json()
@@ -160,7 +163,7 @@ def project_paper(pvector,pcluster=None):
     '''
     if not pcluster:
         pcluster = -1
-    matrix_file = "%s/%s/clusterprojection_%s.mat.npy" % (_basedir,current_app.config['CLUSTER_PROJECTION_PATH'], pcluster)
+    matrix_file = "%s/%s/clusterprojection_%s.mat.npy" % (_basedir,current_app.config['RECOMMENDER_CLUSTER_PROJECTION_PATH'], pcluster)
     try:
         projection = np.load(matrix_file)
     except Exception,err:
@@ -211,7 +214,8 @@ def find_closest_cluster_papers(pcluster,vec):
     # we can calculate the distance of the current papers (the coordinates are stored in
     # 'vec')
     SQL = "SELECT * FROM clustering WHERE bibcode IN (%s)" % ",".join(map(lambda a: "\'%s\'"%a,cluster_info.members))
-    results = db.session.execute(SQL)
+    db.reco = Bind(current_app.config.get('RECOMMENDER_BIND_NAME'))
+    results = db.reco.execute(SQL)
     distances = []
     for result in results:
         paper = result[1]
@@ -221,7 +225,7 @@ def find_closest_cluster_papers(pcluster,vec):
     # All distances have been recorded, now sort them by distance (ascending),
     # and return the appropriate amount
     d = sorted(distances, key=operator.itemgetter(1),reverse=False)
-    return map(lambda a: a[0],d[:current_app.config['MAX_NEIGHBORS']])
+    return map(lambda a: a[0],d[:current_app.config['RECOMMENDER_MAX_NEIGHBORS']])
 
 def find_recommendations(G,remove=None):
     '''Given a set of papers (which is the set of closest papers within a given

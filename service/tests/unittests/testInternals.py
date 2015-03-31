@@ -113,7 +113,7 @@ class TestDataRetrieval(TestCase):
     mockdata = [{'id':'1','bibcode':'a','keyword_norm':expected_keywords + ["x","y","z"]}]
 
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -131,7 +131,7 @@ class TestDataRetrieval(TestCase):
     mockdata = [{'id':'1','bibcode':'a','keyword_norm':["x","y","z"]}]
 
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -147,7 +147,7 @@ class TestDataRetrieval(TestCase):
 
     # When Solr is unavailable, an error is returned
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=500,
             body="""{
@@ -181,7 +181,7 @@ class TestArticleDataRetrieval(TestCase):
     ]
 
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -202,7 +202,7 @@ class TestArticleDataRetrieval(TestCase):
 
     # When Solr is unavailable, an error is returned
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=500,
             body="""{
@@ -237,7 +237,7 @@ class TestCitationDataRetrieval(TestCase):
     ]
 
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -253,7 +253,7 @@ class TestCitationDataRetrieval(TestCase):
 
     # When Solr is unavailable, an error is returned
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=500,
             body="""{
@@ -285,7 +285,7 @@ class TestVectorCreation(TestCase):
     mockdata = [{'id':'1','bibcode':'a','keyword_norm':expected_keywords + ["x","y","z"]}]
 
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -309,7 +309,7 @@ class TestVectorCreation(TestCase):
     mockdata = [{'id':'1','bibcode':'a','keyword_norm':["x","y","z"]}]
 
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -378,7 +378,7 @@ class TestProjection(TestCase):
     '''Test to see if we find the closest papers in a cluster for a given paper and cluster'''
     from utils.recommender import find_closest_cluster_papers
     # We only want the one closest paper for testing
-    self.app.config['MAX_NEIGHBORS'] = 1
+    self.app.config['RECOMMENDER_MAX_NEIGHBORS'] = 1
     cluster = 1
     pvec = np.array([0.3, 0.3, 0.3, 0.3, 0.3])
     result = find_closest_cluster_papers(cluster,pvec)
@@ -402,7 +402,7 @@ class TestProjection(TestCase):
     ]
 
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -436,7 +436,7 @@ class TestProjection(TestCase):
     {'id':'7','bibcode':'r2','first_author':'au_r2','title':['ttl_r2']}
     ]
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{

@@ -30,7 +30,10 @@ def create_app(blueprint_only=False):
     app.config.from_pyfile('local_config.py')
   except IOError:
     pass
-  app.client = Client(app.config['CLIENT'])
+
+  if not hasattr(app.config,'RECOMMENDER_API_TOKEN'):
+    app.config['RECOMMENDER_API_TOKEN'] = None
+  app.config['RECOMMENDER_CLIENT'] = Client({'TOKEN':app.config.get('RECOMMENDER_API_TOKEN')})
 
   blueprint = _create_blueprint_()
   api = Api(blueprint)
@@ -48,4 +51,4 @@ def create_app(blueprint_only=False):
 
 if __name__ == "__main__":
   app = create_app()
-  app.run()
+  app.run(debug=True,use_reloader=False)

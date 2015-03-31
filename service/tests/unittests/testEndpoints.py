@@ -80,7 +80,7 @@ class TestExpectedResults(TestCase):
     {'id':'7','bibcode':'r2','first_author':'au_r2','title':['ttl_r2']}
     ]
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
@@ -110,7 +110,7 @@ class TestExpectedResults(TestCase):
     # for the papers found in the co-reads
     # The mock data below takes everything into account that was tested before
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=500,
             body="""{
@@ -143,7 +143,7 @@ class TestExpectedResults(TestCase):
     {'id':'7','bibcode':'r2','first_author':'au_r2','title':['ttl_r2']}
     ]
     httpretty.register_uri(
-            httpretty.GET, self.app.config.get('SOLR_PATH'),
+            httpretty.GET, self.app.config.get('RECOMMENDER_SOLR_PATH'),
             content_type='application/json',
             status=200,
             body="""{
