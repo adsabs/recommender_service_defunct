@@ -7,7 +7,7 @@ RECOMMENDER_NUMBER_SUGGESTIONS = 10
 RECOMMENDER_THRESHOLD_FREQUENCY = 1
 RECOMMENDER_SOLR_PATH = 'http://0.0.0.0:9000/solr/select'
 RECOMMENDER_CLUSTER_PROJECTION_PATH = 'utils/data/clusters'
-SQLALCHEMY_BINDS = {}
+SQLALCHEMY_BINDS = {'recommender':'postgresql+psycopg2://user:pwd@localhost:5432/recommender'}
 # Define the autodiscovery endpoint
 DISCOVERER_PUBLISH_ENDPOINT = '/resources'
 # Advertise its own route within DISCOVERER_PUBLISH_ENDPOINT
