@@ -214,7 +214,7 @@ def find_closest_cluster_papers(pcluster,vec):
     # we can calculate the distance of the current papers (the coordinates are stored in
     # 'vec')
     SQL = "SELECT * FROM clustering WHERE bibcode IN (%s)" % ",".join(map(lambda a: "\'%s\'"%a,cluster_info.members))
-    db.reco = Bind(current_app.config.get('RECOMMENDER_BIND_NAME'))
+    db.reco = Bind(Clustering.__bind_key__)
     results = db.reco.execute(SQL)
     distances = []
     for result in results:
