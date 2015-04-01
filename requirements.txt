@@ -10,3 +10,4 @@ simplejson>=3.3.0
 requests
 numpy
 httpretty
+mock
