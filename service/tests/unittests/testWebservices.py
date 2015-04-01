@@ -35,6 +35,5 @@ class TestWebservices(TestCase):
       [self.assertIn(expected_field,v) for v in r.json.values()] #Assert each resource is described has the expected_field
       [self.assertIsInstance(v[expected_field],_type) for v in r.json.values()] #Assert every expected_field has the proper type
 
-
 if __name__ == '__main__':
   unittest.main()

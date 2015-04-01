@@ -31,9 +31,7 @@ def create_app(blueprint_only=False):
   except IOError:
     pass
 
-  if not hasattr(app.config,'RECOMMENDER_API_TOKEN'):
-    app.config['RECOMMENDER_API_TOKEN'] = None
-  app.config['RECOMMENDER_CLIENT'] = Client({'TOKEN':app.config.get('RECOMMENDER_API_TOKEN')})
+  app.config['RECOMMENDER_CLIENT'] = Client({'TOKEN':app.config.get('RECOMMENDER_API_TOKEN', None)})
 
   blueprint = _create_blueprint_()
   api = Api(blueprint)
