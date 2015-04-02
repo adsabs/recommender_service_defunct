@@ -56,12 +56,14 @@ class TestConfig(TestCase):
 
   def test_config_values(self):
     '''Check if all required config variables are there'''
-    required = ["RECOMMENDER_MAX_HITS","RECOMMENDER_MAX_INPUT","RECOMMENDER_CHUNK_SIZE","RECOMMENDER_MAX_NEIGHBORS","RECOMMENDER_NUMBER_SUGGESTIONS","RECOMMENDER_THRESHOLD_FREQUENCY","RECOMMENDER_SOLR_PATH","RECOMMENDER_CLUSTER_PROJECTION_PATH","SQLALCHEMY_BINDS","DISCOVERER_PUBLISH_ENDPOINT","DISCOVERER_SELF_PUBLISH","RECOMMENDER_API_TOKEN","SQLALCHEMY_BINDS"]
+    required = ["RECOMMENDER_MAX_HITS","RECOMMENDER_MAX_INPUT","RECOMMENDER_CHUNK_SIZE","RECOMMENDER_MAX_NEIGHBORS","RECOMMENDER_NUMBER_SUGGESTIONS","RECOMMENDER_THRESHOLD_FREQUENCY","RECOMMENDER_SOLR_PATH","RECOMMENDER_CLUSTER_PROJECTION_PATH","SQLALCHEMY_BINDS","DISCOVERER_PUBLISH_ENDPOINT","DISCOVERER_SELF_PUBLISH","SQLALCHEMY_BINDS","RECOMMENDER_CLIENT"]
 
     missing = [x for x in required if x not in self.app.config.keys()]
     self.assertTrue(len(missing)==0)
-    # Check if API has an actual value
-    self.assertTrue(self.app.config.get('RECOMMENDER_API_TOKEN',None) != None)
+    # Check if API has an actual value if we have a 'local_config.py'
+    # (not available when testing with Travis)
+    if os.path.exists("%s/local_config.py" % PROJECT_HOME):
+      self.assertTrue(self.app.config.get('RECOMMENDER_API_TOKEN',None) != None)
 
 class TestHelperFunctions(TestCase):
   '''Check if the helper functions return expected results'''
