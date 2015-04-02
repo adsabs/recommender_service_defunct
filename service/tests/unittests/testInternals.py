@@ -47,6 +47,22 @@ def get_coreads():
     )
   return cr
 
+class TestConfig(TestCase):
+  '''Check if config has necessary entries'''
+  def create_app(self):
+    '''Create the wsgi application'''
+    app_ = app.create_app()
+    return app_
+
+  def test_config_values(self):
+    '''Check if all required config variables are there'''
+    required = ["RECOMMENDER_MAX_HITS","RECOMMENDER_MAX_INPUT","RECOMMENDER_CHUNK_SIZE","RECOMMENDER_MAX_NEIGHBORS","RECOMMENDER_NUMBER_SUGGESTIONS","RECOMMENDER_THRESHOLD_FREQUENCY","RECOMMENDER_SOLR_PATH","RECOMMENDER_CLUSTER_PROJECTION_PATH","SQLALCHEMY_BINDS","DISCOVERER_PUBLISH_ENDPOINT","DISCOVERER_SELF_PUBLISH","RECOMMENDER_API_TOKEN","SQLALCHEMY_BINDS"]
+
+    missing = [x for x in required if x not in self.app.config.keys()]
+    self.assertTrue(len(missing)==0)
+    # Check if API has an actual value
+    self.assertTrue(self.app.config.get('RECOMMENDER_API_TOKEN',None) != None)
+
 class TestHelperFunctions(TestCase):
   '''Check if the helper functions return expected results'''
   def create_app(self):
