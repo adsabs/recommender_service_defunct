@@ -126,7 +126,7 @@ class TestExpectedResults(TestCase):
     self.assertTrue(r.status_code == 500)
 
   @httpretty.activate
-  def test_recommendations_404(self):
+  def test_recommendations_no_keywords(self):
     '''Test to see if calling the recommender endpoint works for no keywords'''
     # To test this method we need both the mock for PostgreSQL
     # and the override for the Solr query (for 'get_article_data').
@@ -157,10 +157,11 @@ class TestExpectedResults(TestCase):
 
     url = url_for('recommender.recommender',bibcode='a')
     r = self.client.get(url)
-    # The response should have a status code 404
-    self.assertTrue(r.status_code == 404)
-    # The error message should be that no keywords were found
-    self.assertTrue(r.json.get('Error') == 'No keywords were found')
+    # The response should have a status code 200
+    self.assertTrue(r.status_code == 200)
+    self.assertTrue('Error' in r.json)
+    # The error message should be that no results were found
+    self.assertTrue(r.json.get('Error') == 'Unable to get results!')
 
 if __name__ == '__main__':
   unittest.main()

@@ -78,7 +78,7 @@ def get_normalized_keywords(bibc):
     solr_args = {'wt':'json', 'q':q, 'fl':'keyword_norm', 'rows': current_app.config['RECOMMENDER_MAX_HITS']}
     response = current_app.config.get('RECOMMENDER_CLIENT').session.get(current_app.config.get("RECOMMENDER_SOLR_PATH") , params = solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
+        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     for doc in resp['response']['docs']:
         try:
@@ -87,7 +87,7 @@ def get_normalized_keywords(bibc):
             pass
     keywords = filter(lambda a: a in ASTkeywords, keywords)
     if len(keywords) == 0:
-        return {"Error": "No keywords were found", "Error Info": "No or unusable keywords in data", "Status Code": "404"}
+        return {"Error": "Unable to get results!", "Error Info": "No or unusable keywords in data", "Status Code": "200"}
     else:
         return {"Results": keywords}
         
@@ -104,7 +104,7 @@ def get_article_data(biblist, check_references=True):
     solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['RECOMMENDER_MAX_HITS']}
     response = current_app.config.get('RECOMMENDER_CLIENT').session.get(current_app.config.get("RECOMMENDER_SOLR_PATH") , params = solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
+        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     results = resp['response']['docs']
     if check_references:
@@ -131,7 +131,7 @@ def get_citing_papers(**args):
     solr_args = {'wt':'json', 'q':q, 'fl':fl, 'sort':'pubdate desc, bibcode desc', 'rows': current_app.config['RECOMMENDER_MAX_HITS']}
     response = current_app.config.get('RECOMMENDER_CLIENT').session.get(current_app.config.get("RECOMMENDER_SOLR_PATH") , params = solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": response.status_code}
+        return {"Error": "There was a connection error. Please try again later", "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     for doc in resp['response']['docs']:
         if 'citation' in doc:

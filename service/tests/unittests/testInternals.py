@@ -160,7 +160,7 @@ class TestDataRetrieval(TestCase):
             }}"""%json.dumps(mockdata))
 
     results = get_normalized_keywords('bibcode')
-    expected = {'Status Code': '404', 'Error Info': 'No or unusable keywords in data', 'Error': 'No keywords were found'}
+    expected = {'Status Code': '200', 'Error': 'Unable to get results!', 'Error Info': 'No or unusable keywords in data'}
     self.assertEqual(results, expected)
 
     # When Solr is unavailable, an error is returned
@@ -339,7 +339,7 @@ class TestVectorCreation(TestCase):
 
     vector = make_paper_vector('bibcode')
     self.assertTrue('Error' in vector)
-    self.assertEqual(vector, {'Status Code': '404', 'Error Info': 'No or unusable keywords in data', 'Error': 'No keywords were found'})
+    self.assertEqual(vector, {'Status Code': '200', 'Error Info': 'No or unusable keywords in data', 'Error': 'Unable to get results!'})
 
 class TestProjection(TestCase):
   '''Check if methods return expected results'''
