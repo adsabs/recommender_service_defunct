@@ -11,3 +11,4 @@ requests
 numpy
 httpretty
 mock
+coveralls
