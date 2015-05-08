@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/adsabs/recommender_service.svg?branch=master)](https://travis-ci.org/adsabs/recommender_service)
+[![Coverage Status](https://coveralls.io/repos/adsabs/recommender_service/badge.svg)](https://coveralls.io/r/adsabs/recommender_service)
 
 Flask service implementation of recommender service. Start application with
 
