@@ -23,12 +23,20 @@ class AlchemyEncoder(json.JSONEncoder):
 
         return json.JSONEncoder.default(self, obj)
 
+class Reads(db.Model):
+    __tablename__='reads'
+    __bind_key__ ='recommender'
+    id = Column(Integer,primary_key=True)
+    cookie = Column(String,nullable=False,index=True)
+    reads = Column(postgresql.ARRAY(String))
+
 class CoReads(db.Model):
     __tablename__='coreads'
     __bind_key__ ='recommender'
     id = Column(Integer,primary_key=True)
     bibcode = Column(String,nullable=False,index=True)
     coreads = Column(postgresql.JSON)
+    readers = Column(postgresql.ARRAY(String))
 
 class Clustering(db.Model):
     __tablename__='clustering'
