@@ -57,9 +57,9 @@ class TestModels(TestCase):
         sc = Column(String)
         jc = Column(postgresql.JSON)
         ac = Column(postgresql.ARRAY(Float))
-
+        cc = Column(postgresql.ARRAY(String))
         # test the CoReads model
-        cols_expect = map(type, [ic.type, sc.type, jc.type])
+        cols_expect = map(type, [ic.type, sc.type, jc.type, cc.type])
         self.assertEqual([type(c.type) for c in CoReads.__table__.columns], cols_expect)
         # test the Clustering model
         cols_expect = map(type, [ic.type, sc.type, ic.type, ac.type, ac.type])
@@ -72,8 +72,9 @@ class TestModels(TestCase):
         c.id = 1
         c.bibcode = 'b'
         c.coreads = {}
+        c.readers = []
         data = json.loads(json.dumps(c, cls=AlchemyEncoder))
-        expected = {u'query': None, u'query_class': None, u'bibcode': u'b', u'id': 1, u'coreads': {}}
+        expected = {u'query': None, u'query_class': None, u'bibcode': u'b', u'id': 1, u'coreads': {}, 'readers':[]}
         self.assertEqual(data, expected)
 
 if __name__ == '__main__':
