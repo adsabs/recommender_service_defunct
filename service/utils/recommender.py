@@ -9,7 +9,7 @@ import sys
 import time
 from datetime import datetime
 import simplejson as json
-from itertools import groupby
+from itertools import groupby, chain
 from collections import defaultdict
 import urllib
 import numpy as np 
@@ -214,14 +214,17 @@ def find_closest_cluster_papers(pcluster,vec):
     # we can calculate the distance of the current papers (the coordinates are stored in
     # 'vec')
     SQL = "SELECT * FROM clustering WHERE bibcode IN (%s)" % ",".join(map(lambda a: "\'%s\'"%a,cluster_info.members))
-    db.reco = Bind(Clustering.__bind_key__)
-    results = db.reco.execute(SQL)
+    db.clustering = Bind(Clustering.__bind_key__)
+    results = db.clustering.execute(SQL)
     distances = []
     for result in results:
-        paper = result[1]
-        pvect = np.array(result[4])
-        distance = np.linalg.norm(pvect-vec)
-        distances.append((paper,distance))
+        try:
+            paper = result.bibcode
+            pvect = np.array(result.vector_low)
+            distance = np.linalg.norm(pvect-vec)
+            distances.append((paper,distance))
+        except:
+            continue
     # All distances have been recorded, now sort them by distance (ascending),
     # and return the appropriate amount
     d = sorted(distances, key=operator.itemgetter(1),reverse=False)
@@ -236,15 +239,24 @@ def find_recommendations(G,remove=None):
     # The alsoreads are taken to be all the coreads taken together
     BeforeFreq = []
     AfterFreq  = []
-    alsoreads  = []
+    readers    = []
     for paper in G:
         result = db.session.query(CoReads).filter(CoReads.bibcode == paper).first()
         if not result:
             continue
         BeforeFreq = merge_tuples(BeforeFreq, result.coreads['before'])
         AfterFreq  = merge_tuples(AfterFreq, result.coreads['after'])
-        alsoreads += flatten([[x[0]]*x[1] for x in result.coreads['before']])
-        alsoreads += flatten([[x[0]]*x[1] for x in result.coreads['after']])
+        readers += result.readers
+    # Sort the before and after frequency distributions by frequency
+    BeforeFreq = sorted(BeforeFreq, key=lambda x: x[1], reverse=True)
+    AfterFreq  = sorted(AfterFreq, key=lambda x: x[1], reverse=True)
+    # Now the the entire set of also-reads
+    IDstr = ",".join(map(lambda a: "\'%s\'"%a,readers))
+    rawSQL = "SELECT reads FROM reads WHERE cookie = ANY (ARRAY[%s])"
+    SQL = rawSQL % IDstr
+    db.alsoreads = Bind(Clustering.__bind_key__)
+    results = db.alsoreads.execute(SQL)
+    alsoreads = list(chain(*[r.reads for r in results if hasattr(r, 'reads')]))
     # remove (if specified) the paper for which we get recommendations
     if remove:
         alsoreads = filter(lambda a: a != remove, alsoreads)
@@ -263,6 +275,9 @@ def find_recommendations(G,remove=None):
         tmpdata.append(item)
     top100_data = tmpdata
     mostRecent = top100_data[0]['bibcode']
+    # Remove the most recent from the AlsoFreqdata
+    AlsoFreq = [a for a in AlsoFreq if a[0] != mostRecent]
+    # Get data for the top 100 cited papers
     top100_data = sorted(top100_data, key=operator.itemgetter('citation_count'),reverse=True)
     # get the most cited paper from the top 100 most alsoread papers
     MostCited = top100_data[0]['bibcode']

@@ -4,7 +4,7 @@ sys.path.append(PROJECT_HOME)
 from flask.ext.testing import TestCase
 from flask import request
 from flask import url_for, Flask
-from utils.database import db,Clusters,CoReads
+from utils.database import db,Clusters,Clustering,CoReads,Reads
 import unittest
 import requests
 import time
@@ -33,16 +33,26 @@ def get_testclusters(n):
 def get_paperinfo():
   data = []
   for i in range(1,5):
-    paper = 'paper_%s' % str(i)
-    pvect = [float(i)/10]*5
-    data.append(['',paper,'','',pvect])
+    cl = Clustering(bibcode='paper_%s' % str(i), vector_low=[float(i)/10]*5)
+    data.append(cl)
+  ar1 = Reads(
+    cookie = 'u1',
+    reads = ['ppr1']*13 + ['ppr2']*7
+  )
+  data.append(ar1)
+  ar2 = Reads(
+    cookie = 'u2',
+    reads = ['ppr2']*53 + ['ppr3']*17
+  )
+  data.append(ar2)
   return data
 
 def get_coreads():
   cr = CoReads(
     bibcode = 'paper_3',
     coreads = {'before':[['ppr1',13],['ppr2',7]],
-               'after':[['ppr2',53],['ppr3',17]]}
+               'after':[['ppr2',53],['ppr3',17]]},
+    readers = ['u1','u2'],
     )
   return cr
 
@@ -90,8 +100,7 @@ class TestExpectedResults(TestCase):
             "response":{"numFound":10456930,"start":0,"docs":%s
             }}"""%json.dumps(mockdata))
     # With the mock data the following recommendations should get generated
-    expected_recommendations = [{'bibcode': 'ppr3', 'author': u'au_ppr3,+', 'title': u'ttl_ppr3'}, {'bibcode': 'ppr2', 'author': u'au_ppr2,+', 'title': u'ttl_ppr2'}, {'bibcode': u'ppr1', 'author': u'au_ppr1,+', 'title': u'ttl_ppr1'}, {'bibcode': u'c1', 'author': u'au_c1,+', 'title': u'ttl_c1'}, {'bibcode': u'r2', 'author': u'au_r2,+', 'title': u'ttl_r2'}, {'bibcode': u'ppr2', 'author': u'au_ppr2,+', 'title': u'ttl_ppr2'}]
-
+    expected_recommendations = [{u'title': u'ttl_ppr2', u'bibcode': u'ppr2', u'author': u'au_ppr2,+'}, {u'title': u'ttl_ppr2', u'bibcode': u'ppr2', u'author': u'au_ppr2,+'}, {u'title': u'ttl_ppr1', u'bibcode': u'ppr1', u'author': u'au_ppr1,+'}, {u'title': u'ttl_c1', u'bibcode': u'c1', u'author': u'au_c1,+'}, {u'title': u'ttl_r2', u'bibcode': u'r2', u'author': u'au_r2,+'}, {u'title': u'ttl_ppr2', u'bibcode': u'ppr2', u'author': u'au_ppr2,+'}]
     url = url_for('recommender.recommender',bibcode='a')
     r = self.client.get(url)
     # The response should have a status code 200
