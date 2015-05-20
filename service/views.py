@@ -8,16 +8,19 @@ import sys
 from utils.recommender import get_recommendations
 
 blueprint = Blueprint(
-      'recommender',
-      __name__,
-      static_folder=None,
+    'recommender',
+    __name__,
+    static_folder=None,
 )
 
+
 class Recommender(Resource):
+
     """Return recommender results for a given bibcode"""
     scopes = []
-    rate_limit = [1000,60*60*24]
-    decorators = [advertise('scopes','rate_limit')]
+    rate_limit = [1000, 60 * 60 * 24]
+    decorators = [advertise('scopes', 'rate_limit')]
+
     def get(self, bibcode):
         try:
             results = get_recommendations(bibcode)
