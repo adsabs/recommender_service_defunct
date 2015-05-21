@@ -6,7 +6,7 @@ RECOMMENDER_MAX_NEIGHBORS = 40
 RECOMMENDER_NUMBER_SUGGESTIONS = 10
 RECOMMENDER_THRESHOLD_FREQUENCY = 1
 RECOMMENDER_SOLR_PATH = 'https://api.adsabs.harvard.edu/v1/search/query'
-RECOMMENDER_CLUSTER_PROJECTION_PATH = 'utils/data/clusters'
+RECOMMENDER_CLUSTER_PROJECTION_PATH = 'data/clusters'
 SQLALCHEMY_BINDS = {
     'recommender': 'postgresql+psycopg2://user:pwd@localhost:5432/recommender'}
 # Define the autodiscovery endpoint

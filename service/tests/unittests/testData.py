@@ -8,7 +8,7 @@ from flask import request
 from flask import url_for, Flask
 from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.dialects import postgresql
-from utils.database import CoReads, Clusters, Clustering, AlchemyEncoder
+from models import CoReads, Clusters, Clustering, AlchemyEncoder
 import unittest
 import requests
 import time
@@ -31,7 +31,7 @@ class TestHelperFunctions(TestCase):
 
     def test_keywords(self):
         '''Test whether the list of AST keywords is still sane'''
-        from utils.definitions import ASTkeywords
+        from definitions import ASTkeywords
         concat = reduce(lambda x, y: x + y, ASTkeywords, "")
         hash = md5.new()
         hash.update(concat)

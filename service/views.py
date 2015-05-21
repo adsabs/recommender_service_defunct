@@ -1,17 +1,7 @@
-from flask import current_app, Blueprint, request
+from flask import current_app, request
 from flask.ext.restful import Resource
 from flask.ext.discoverer import advertise
-import time
-import inspect
-import sys
-
-from utils.recommender import get_recommendations
-
-blueprint = Blueprint(
-    'recommender',
-    __name__,
-    static_folder=None,
-)
+from recommender import get_recommendations
 
 
 class Recommender(Resource):

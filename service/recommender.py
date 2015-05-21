@@ -14,12 +14,13 @@ from collections import defaultdict
 import urllib
 import numpy as np
 import operator
-from .definitions import ASTkeywords
+from definitions import ASTkeywords
 from flask import current_app, request
-from database import db, CoReads, Clusters, Clustering, AlchemyEncoder
+from models import db, CoReads, Clusters, Clustering, AlchemyEncoder
 from sqlalchemy.sql import text
+from client import client
 
-_basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+_basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Helper functions
 # A class to help bind in raw SQL queries
@@ -88,7 +89,7 @@ def get_normalized_keywords(bibc):
     # Get the information from Solr
     solr_args = {'wt': 'json', 'q': q, 'fl': 'keyword_norm',
                  'rows': current_app.config['RECOMMENDER_MAX_HITS']}
-    response = current_app.config.get('RECOMMENDER_CLIENT').session.get(
+    response = client().get(
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:
@@ -123,7 +124,7 @@ def get_article_data(biblist, check_references=True):
     solr_args = {'wt': 'json', 'q': q, 'fl': fl,
                  'sort': 'pubdate desc, bibcode desc',
                  'rows': current_app.config['RECOMMENDER_MAX_HITS']}
-    response = current_app.config.get('RECOMMENDER_CLIENT').session.get(
+    response = client().get(
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:
@@ -159,7 +160,7 @@ def get_citing_papers(**args):
     solr_args = {'wt': 'json', 'q': q, 'fl': fl,
                  'sort': 'pubdate desc, bibcode desc',
                  'rows': current_app.config['RECOMMENDER_MAX_HITS']}
-    response = current_app.config.get('RECOMMENDER_CLIENT').session.get(
+    response = client().get(
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:

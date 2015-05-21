@@ -1,54 +1,55 @@
-import os
-from flask import Blueprint
-from flask import Flask, g
-from views import blueprint, Recommender
+from flask import Flask
+from views import Recommender
 from flask.ext.restful import Api
 from flask.ext.discoverer import Discoverer
-from client import Client
-from utils.database import db
+from models import db
+from flask.ext.consulate import Consul, ConsulConnectionError
 
 
-def _create_blueprint_():
-    '''
-    Returns a initialized Flask.Blueprint instance; This should be in a
-    closure instead of the top level of a module because a blueprint can
-    only be registered once. Having it at the top level creates a problem
-    with unittests in that the app is created/destroyed at every test,
-    but its blueprint is still the same object which was already registered
-    '''
-    return Blueprint(
-        'recommender',
-        __name__,
-        static_folder=None,
-    )
+def create_app():
+    """
+    Create the application and return it to the user
+    :return: flask.Flask application
+    """
 
-
-def create_app(blueprint_only=False):
     app = Flask(__name__, static_folder=None)
-
     app.url_map.strict_slashes = False
-    app.config.from_pyfile('config.py')
-    try:
-        app.config.from_pyfile('local_config.py')
-    except IOError:
-        pass
 
-    app.config['RECOMMENDER_CLIENT'] = Client(
-        {'TOKEN': app.config.get('RECOMMENDER_API_TOKEN', None)})
+    Consul(app)
 
-    blueprint = _create_blueprint_()
-    api = Api(blueprint)
+    load_config(app)
+
+    api = Api(app)
     api.add_resource(Recommender, '/<string:bibcode>')
 
-    if blueprint_only:
-        return blueprint
-
-    app.register_blueprint(blueprint)
     db.init_app(app)
 
     discoverer = Discoverer(app)
 
     return app
+
+
+def load_config(app):
+    """
+    Loads configuration in the following order:
+        1. config.py
+        2. local_config.py (ignore failures)
+        3. consul (ignore failures)
+    :param app: flask.Flask application instance
+    :return: None
+    """
+
+    app.config.from_pyfile('config.py')
+
+    try:
+        app.config.from_pyfile('local_config.py')
+    except IOError:
+        pass  # todo: log this failure
+
+    try:
+        app.extensions['consul'].apply_remote_config()
+    except ConsulConnectionError, e:
+        pass  # todo: log this failure
 
 if __name__ == "__main__":
     app = create_app()
