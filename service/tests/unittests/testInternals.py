@@ -6,7 +6,7 @@ sys.path.append(PROJECT_HOME)
 from flask.ext.testing import TestCase
 from flask import request
 from flask import url_for, Flask
-from utils.database import db, Clusters, Clustering, CoReads, Reads
+from models import db, Clusters, Clustering, CoReads, Reads
 import unittest
 import requests
 import time
@@ -82,8 +82,7 @@ class TestConfig(TestCase):
                     "RECOMMENDER_SOLR_PATH",
                     "RECOMMENDER_CLUSTER_PROJECTION_PATH",
                     "SQLALCHEMY_BINDS", "DISCOVERER_PUBLISH_ENDPOINT",
-                    "DISCOVERER_SELF_PUBLISH", "SQLALCHEMY_BINDS",
-                    "RECOMMENDER_CLIENT"]
+                    "DISCOVERER_SELF_PUBLISH", "SQLALCHEMY_BINDS"]
 
         missing = [x for x in required if x not in self.app.config.keys()]
         self.assertTrue(len(missing) == 0)
@@ -128,14 +127,14 @@ class TestHelperFunctions(TestCase):
 
     def test_flattener(self):
         '''Test the method that turns lists of lists into a single list'''
-        from utils.recommender import flatten
+        from recommender import flatten
         data = [[[1, 2, 3], (42, None)], [4, 5], [6], 7, (8, 9, 10)]
         expected = [1, 2, 3, 42, None, 4, 5, 6, 7, 8, 9, 10]
         self.assertEqual(flatten(data), expected)
 
     def test_tuplemerger(self):
         '''Test the method that merges tuples'''
-        from utils.recommender import merge_tuples
+        from recommender import merge_tuples
         l1 = [['a', 1], ['b', 2], ['c', 5]]
         l2 = [['b', 1], ['c', 6], ['d', 1]]
         expected = [('a', 1), ('c', 11), ('b', 3), ('d', 1)]
@@ -143,7 +142,7 @@ class TestHelperFunctions(TestCase):
 
     def test_frequencies(self):
         '''Test the method that generates a frequency distribution'''
-        from utils.recommender import get_frequencies
+        from recommender import get_frequencies
         l = ['a', 'a', 'a', 'b', 'x', 'x']
         expected = [('a', 3), ('x', 2), ('b', 1)]
         self.assertEqual(get_frequencies(l), expected)
@@ -161,7 +160,7 @@ class TestDataRetrieval(TestCase):
     @httpretty.activate
     def test_normalized_keywords(self):
         '''Test to see if normalized keywords method behaves as expected'''
-        from utils.recommender import get_normalized_keywords
+        from recommender import get_normalized_keywords
         # When normalized keywords from the AST collection are supplied, they
         # should be returned
         expected_keywords = ["aberration", "ablation", "absorption"]
@@ -237,7 +236,7 @@ class TestArticleDataRetrieval(TestCase):
     @httpretty.activate
     def test_article_data(self):
         '''Test to see if article data gets returned properly'''
-        from utils.recommender import get_article_data
+        from recommender import get_article_data
         # By default this method should return a list of dictionaries that
         # includes references
         expected_keywords = ["aberration", "ablation", "absorption"]
@@ -307,7 +306,7 @@ class TestCitationDataRetrieval(TestCase):
     @httpretty.activate
     def test_citation_data(self):
         '''Test to see if citation data gets returned properly'''
-        from utils.recommender import get_citing_papers
+        from recommender import get_citing_papers
         # This method should return a dictionary where the
         # key 'Results' holds all the citations
         # for the input bibcodes
@@ -365,8 +364,8 @@ class TestVectorCreation(TestCase):
     @httpretty.activate
     def test_create_paper_vector(self):
         '''Test to see if paper vector get properly created'''
-        from utils.recommender import get_normalized_keywords
-        from utils.recommender import make_paper_vector
+        from recommender import get_normalized_keywords
+        from recommender import make_paper_vector
         # For a paper with AST normalized keywords, we should get a non-trivial
         # vector
         expected_keywords = ["aberration", "ablation", "absorption"]
@@ -434,7 +433,7 @@ class TestProjection(TestCase):
     def test_project_paper(self):
         '''Test to see if paper vector gets properly
            projected into a given cluster'''
-        from utils.recommender import project_paper
+        from recommender import project_paper
         # First we test projecting a paper in the 100-dimensional
         # space, which corresponds
         # with cluster "-1". This projection happens in the beginning,
@@ -467,7 +466,7 @@ class TestProjection(TestCase):
 
     def test_find_paper_cluster(self):
         '''Test to see if we find the expected cluster'''
-        from utils.recommender import find_paper_cluster
+        from recommender import find_paper_cluster
         pvec = np.array([1.0, 1.0, 1.0, 1.0, 1.0])
         # If we have a paper that is already in a cluster,
         # the 'one' method should find it
@@ -485,7 +484,7 @@ class TestProjection(TestCase):
     def test_find_closest_cluster_papers(self):
         '''Test to see if we find the closest papers in a cluster
            for a given paper and cluster'''
-        from utils.recommender import find_closest_cluster_papers
+        from recommender import find_closest_cluster_papers
         # We only want the one closest paper for testing
         self.app.config['RECOMMENDER_MAX_NEIGHBORS'] = 1
         cluster = 1
@@ -500,7 +499,7 @@ class TestProjection(TestCase):
     @httpretty.activate
     def test_find_recommendations(self):
         '''Test to see if recommendations are returned properly'''
-        from utils.recommender import find_recommendations
+        from recommender import find_recommendations
         # To test this method we need both the mock for PostgreSQL
         # and the override for the Solr query (for 'get_article_data').
         # The Solr query needs to return the references and citation counts
@@ -537,7 +536,7 @@ class TestProjection(TestCase):
     @httpretty.activate
     def test_everything(self):
         '''Test to see if calling everything sequentially works'''
-        from utils.recommender import get_recommendations
+        from recommender import get_recommendations
         # To test this method we need both the mock for PostgreSQL
         # and the override for the Solr query (for 'get_article_data').
         # The Solr query needs to return the references and citation counts

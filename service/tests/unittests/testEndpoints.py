@@ -6,7 +6,7 @@ sys.path.append(PROJECT_HOME)
 from flask.ext.testing import TestCase
 from flask import request
 from flask import url_for, Flask
-from utils.database import db, Clusters, Clustering, CoReads, Reads
+from models import db, Clusters, Clustering, CoReads, Reads
 import unittest
 import requests
 import time
@@ -140,7 +140,7 @@ class TestExpectedResults(TestCase):
                                     {u'title': u'ttl_ppr2',
                                      u'bibcode': u'ppr2',
                                      u'author': u'au_ppr2,+'}]
-        url = url_for('recommender.recommender', bibcode='a')
+        url = url_for('recommender', bibcode='a')
         r = self.client.get(url)
         # The response should have a status code 200
         self.assertTrue(r.status_code == 200)
@@ -172,7 +172,7 @@ class TestExpectedResults(TestCase):
             "response":{"numFound":0,"start":0,"docs":[]
             }}""")
 
-        url = url_for('recommender.recommender', bibcode='a')
+        url = url_for('recommender', bibcode='a')
         r = self.client.get(url)
         # The response should have a status code 500
         self.assertTrue(r.status_code == 500)
@@ -239,7 +239,7 @@ class TestExpectedResults(TestCase):
                                      'author': u'au_ppr2,+',
                                      'title': u'ttl_ppr2'}]
 
-        url = url_for('recommender.recommender', bibcode='a')
+        url = url_for('recommender', bibcode='a')
         r = self.client.get(url)
         # The response should have a status code 200
         self.assertTrue(r.status_code == 200)
