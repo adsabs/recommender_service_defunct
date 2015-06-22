@@ -203,11 +203,13 @@ def project_paper(pvector, pcluster=None):
     the this is a cluster-specific projection to further reduce the
     dimensionality to 5 dimensions
     '''
-    if not pcluster:
+    if pcluster == None:
         pcluster = -1
     matrix_file = "%s/%s/clusterprojection_%s.mat.npy" % (
         _basedir, current_app.config['RECOMMENDER_CLUSTER_PROJECTION_PATH'],
         pcluster)
+    print pcluster
+    print matrix_file
     try:
         projection = np.load(matrix_file)
     except Exception, err:
@@ -407,6 +409,7 @@ def get_recommendations(bibcode):
         raise Exception(
             'find_paper_cluster: failed to find cluster (%s): %s' %
             (bibcode, str(e)))
+    print "CLUSTER: %s" % pclust
     try:
         cvec = project_paper(pvec, pcluster=pclust)
     except Exception, e:
