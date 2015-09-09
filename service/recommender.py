@@ -16,26 +16,13 @@ import numpy as np
 import operator
 from definitions import ASTkeywords
 from flask import current_app, request
-from models import db, CoReads, Clusters, Clustering, AlchemyEncoder
-from sqlalchemy.sql import text
+from models import db, Reads, CoReads, Clusters, Clustering, AlchemyEncoder
 from client import client
 
 _basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Helper functions
-# A class to help bind in raw SQL queries
-
-
-class Bind(object):
-
-    def __init__(self, bind_key):
-        self.bind = db.get_engine(current_app, bind_key)
-
-    def execute(self, query, params=None):
-        return db.session.execute(query, params, bind=self.bind)
 # Data conversion
-
-
 def flatten(items):
     """flatten(sequence) -> list
 
@@ -264,11 +251,8 @@ def find_closest_cluster_papers(pcluster, vec):
         Clusters.cluster == int(pcluster)).one()
     # For each cluster member, retrieve their lower dimensional coordinate
     # tuple, so that we can calculate the distance of the current papers
-    # (the coordinates are stored in 'vec')
-    SQL = "SELECT * FROM clustering WHERE bibcode IN (%s)" % ",".join(
-        map(lambda a: "\'%s\'" % a, cluster_info.members))
-    db.clustering = Bind(Clustering.__bind_key__)
-    results = db.clustering.execute(SQL)
+    # (the coordinates are stored in 'vec')\
+    results = db.session.query(Clustering).filter(Clustering.bibcode.in_(tuple(cluster_info.members))).all()
     distances = []
     for result in results:
         try:
@@ -308,11 +292,7 @@ def find_recommendations(G, remove=None):
     BeforeFreq = sorted(BeforeFreq, key=lambda x: x[1], reverse=True)
     AfterFreq = sorted(AfterFreq, key=lambda x: x[1], reverse=True)
     # Now the the entire set of also-reads
-    IDstr = ",".join(map(lambda a: "\'%s\'" % a, readers))
-    rawSQL = "SELECT reads FROM reads WHERE cookie = ANY (ARRAY[%s])"
-    SQL = rawSQL % IDstr
-    db.alsoreads = Bind(Clustering.__bind_key__)
-    results = db.alsoreads.execute(SQL)
+    results = db.session.query(Reads).filter(Reads.cookie.in_(tuple(readers))).all()
     alsoreads = list(chain(*[r.reads for r in results if hasattr(r, 'reads')]))
     # remove (if specified) the paper for which we get recommendations
     if remove:
@@ -412,11 +392,13 @@ def get_recommendations(bibcode):
     except Exception, e:
         raise Exception('project_paper: failed to project %s within \
                         cluster %s: %s' % (bibcode, pclust, str(e)))
+    stime=time.time()
     try:
         close = find_closest_cluster_papers(pclust, cvec)
     except Exception, e:
         raise Exception('find_closest_cluster_papers: failed to find \
                         closest cluster papers (%s): %s' % (bibcode, str(e)))
+    etime=time.time()
     try:
         R = find_recommendations(close, remove=bibcode)
     except Exception, e:

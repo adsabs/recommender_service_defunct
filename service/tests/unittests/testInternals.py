@@ -104,7 +104,8 @@ class TestHelperFunctions(TestCase):
         one = db.session.query.return_value.filter.return_value.one
         fst = db.session.query.return_value.filter.return_value.first
         all = db.session.query.return_value.all
-        exe = db.session.execute
+#        exe = db.session.execute
+        exe = db.session.query.return_value.filter.return_value.all
         one.return_value = get_testclusters(1)
         fst.return_value = get_coreads()
         all.return_value = get_testclusters(2)
