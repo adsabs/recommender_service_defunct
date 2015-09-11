@@ -1,3 +1,7 @@
+### 1.0.3
+
+* Add logging
+
 ### 1.0.2
 
 * Add AUTHORS.md, CONTRIBUTING.md, CHANGES.md
