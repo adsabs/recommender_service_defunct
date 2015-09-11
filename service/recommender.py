@@ -5,7 +5,6 @@ Created on Nov 3, 2014
 '''
 import os
 import re
-import sys
 import time
 from datetime import datetime
 import simplejson as json
@@ -115,7 +114,7 @@ def get_article_data(biblist, check_references=True):
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error",
+        return {"Error": "There was a connection error with Solr",
                 "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     results = resp['response']['docs']
@@ -151,7 +150,7 @@ def get_citing_papers(**args):
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error",
+        return {"Error": "There was a connection error with Solr",
                 "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     for doc in resp['response']['docs']:
@@ -198,7 +197,7 @@ def project_paper(pvector, pcluster=None):
     try:
         projection = np.load(matrix_file)
     except Exception, err:
-        sys.stderr.write(
+        current_app.logger.error(
             'Failed to load projection matrix for cluster %s (%s)' %
             (pclust, err))
     PaperVector = np.array(pvector)
