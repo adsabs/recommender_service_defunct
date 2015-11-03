@@ -14,4 +14,4 @@ numpy
 httpretty
 mock
 coveralls
-flask-consulate
+flask-consulate==0.1.2
