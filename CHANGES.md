@@ -1,3 +1,7 @@
+### 1.0.4
+
+* Update of logfile naming
+
 ### 1.0.3
 
 * Add logging
