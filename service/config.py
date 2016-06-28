@@ -1,3 +1,5 @@
+import os
+
 RECOMMENDER_SECRET_KEY = 'this should be changed'
 RECOMMENDER_MAX_HITS = 10000
 RECOMMENDER_MAX_INPUT = 500
@@ -9,6 +11,8 @@ RECOMMENDER_SOLR_PATH = 'https://api.adsabs.harvard.edu/v1/search/query'
 RECOMMENDER_CLUSTER_PROJECTION_PATH = 'data/clusters'
 SQLALCHEMY_BINDS = {
     'recommender': 'postgresql+psycopg2://user:pwd@localhost:5432/recommender'}
+# In what environment are we?
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'staging').lower()
 # Config for logging
 RECOMMENDER_LOGGING = {
     'version': 1,
@@ -25,7 +29,7 @@ RECOMMENDER_LOGGING = {
             'formatter': 'default',
             'level': 'INFO',
             'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': '/tmp/recommender.log',
+            'filename': '/tmp/recommender_service.app.{}.log'.format(ENVIRONMENT),
         },
         'console': {
             'formatter': 'default',
