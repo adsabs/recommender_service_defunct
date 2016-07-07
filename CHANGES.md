@@ -1,3 +1,7 @@
+### 1.0.5
+
+* Only serve recommendations for journals where it makes sense (= core astronomy)
+
 ### 1.0.4
 
 * Update of logfile naming

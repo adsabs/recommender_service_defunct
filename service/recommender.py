@@ -366,6 +366,20 @@ def get_recommendations(bibcode):
     '''
     Recommendations for a single bibcode
     '''
+    # First check if it will make sense to try create recommendations.
+    try:
+        accept = int(bibcode[:4]) >= current_app.config['RECOMMENDER_FROM_YEAR'] and bibcode[4:9] in current_app.config['RECOMMENDER_ALLOWED_JOURNALS']
+    except:
+        accept = False
+    # Trick to have unittests pass and if this ever happens in reality, the first step will raise exception
+    if len(bibcode) != 19:
+        accept = True
+    # If we do not accept this bibcode, we send back a 200 and an error message
+    if not accept:
+        return {"Error": "Unable to get results!",
+                "Error Info": "No recommendations available",
+                "Status Code": "200"}
+    # We have a publication we can work with!
     try:
         vec = make_paper_vector(bibcode)
     except Exception, e:

@@ -75,12 +75,13 @@ class TestConfig(TestCase):
 
     def test_config_values(self):
         '''Check if all required config variables are there'''
-        required = ["RECOMMENDER_MAX_HITS", "RECOMMENDER_MAX_INPUT",
-                    "RECOMMENDER_CHUNK_SIZE", "RECOMMENDER_MAX_NEIGHBORS",
+        required = ["RECOMMENDER_MAX_HITS",
+                    "RECOMMENDER_MAX_NEIGHBORS",
                     "RECOMMENDER_NUMBER_SUGGESTIONS",
-                    "RECOMMENDER_THRESHOLD_FREQUENCY",
                     "RECOMMENDER_SOLR_PATH",
                     "RECOMMENDER_CLUSTER_PROJECTION_PATH",
+                    "RECOMMENDER_FROM_YEAR",
+                    "RECOMMENDER_ALLOWED_JOURNALS",
                     "SQLALCHEMY_BINDS", "DISCOVERER_PUBLISH_ENDPOINT",
                     "DISCOVERER_SELF_PUBLISH", "SQLALCHEMY_BINDS"]
 
@@ -599,8 +600,20 @@ class TestProjection(TestCase):
                                         'title': u'ttl_ppr2'}]}
         # Generate the recommendations
         recommendations = get_recommendations('a')
-        # Do the final check
         self.assertEqual(recommendations, expected_recommendations)
+        # Check that too old publication returns on recommendations
+        min_year = self.app.config.get('RECOMMENDER_FROM_YEAR')
+        bibcode = "%sApJ...999..999X" % (min_year - 1)
+        recommendations = get_recommendations(bibcode)
+        expected = {"Error": "Unable to get results!",
+                "Error Info": "No recommendations available",
+                "Status Code": "200"}
+        # Did we get an error message?
+        self.assertEqual(recommendations, expected)
+        # The same should happen with a journal not in the list of allowed journals
+        bibcode = "9999XXXXX.999..999X"
+        recommendations = get_recommendations(bibcode)
+        self.assertEqual(recommendations, expected)
 
 if __name__ == '__main__':
     unittest.main()
