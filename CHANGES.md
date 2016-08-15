@@ -1,3 +1,7 @@
+### 1.0.6
+
+* removal of Consul dependencies
+
 ### 1.0.5
 
 * Only serve recommendations for journals where it makes sense (= core astronomy)
