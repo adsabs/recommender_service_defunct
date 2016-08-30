@@ -15,7 +15,7 @@ import numpy as np
 import operator
 from definitions import ASTkeywords
 from flask import current_app, request
-from models import db, Reads, CoReads, Clusters, Clustering, AlchemyEncoder
+from models import db, Reads, CoReads, Clusters, Clustering
 from client import client
 
 _basedir = os.path.abspath(os.path.dirname(__file__))
@@ -218,6 +218,7 @@ def find_paper_cluster(pvec, bibc):
     try:
         res = db.session.query(Clusters).filter(
             Clusters.members.any(bibc)).one()
+        db.session.commit()
         cluster = res.cluster
         members = res.members
     except:
@@ -230,6 +231,7 @@ def find_paper_cluster(pvec, bibc):
     # to the cluster centroid is the smallest
     min_dist = 9999
     res = db.session.query(Clusters).all()
+    db.session.commit()
     for entry in res:
         centroid = entry.centroid
         dist = np.linalg.norm(pvec - np.array(centroid))
@@ -263,6 +265,7 @@ def find_closest_cluster_papers(pcluster, vec):
             continue
     # All distances have been recorded, now sort them by distance (ascending),
     # and return the appropriate amount
+    db.session.commit()
     d = sorted(distances, key=operator.itemgetter(1), reverse=False)
     return map(lambda a: a[0],
                d[:current_app.config['RECOMMENDER_MAX_NEIGHBORS']])
@@ -292,6 +295,7 @@ def find_recommendations(G, remove=None):
     AfterFreq = sorted(AfterFreq, key=lambda x: x[1], reverse=True)
     # Now the the entire set of also-reads
     results = db.session.query(Reads).filter(Reads.cookie.in_(tuple(readers))).all()
+    db.session.commit()
     alsoreads = list(chain(*[r.reads for r in results if hasattr(r, 'reads')]))
     # remove (if specified) the paper for which we get recommendations
     if remove:

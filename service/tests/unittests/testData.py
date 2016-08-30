@@ -8,7 +8,7 @@ from flask import request
 from flask import url_for, Flask
 from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.dialects import postgresql
-from models import CoReads, Clusters, Clustering, AlchemyEncoder
+from models import CoReads, Clusters, Clustering
 import unittest
 import requests
 import time
@@ -79,16 +79,6 @@ class TestModels(TestCase):
         cols_expect = map(type, [ic.type, ic.type, ac.type, ac.type])
         self.assertEqual([type(c.type)
                           for c in Clusters.__table__.columns], cols_expect)
-        # test the class that converts a model to a dictionary
-        c = CoReads()
-        c.id = 1
-        c.bibcode = 'b'
-        c.coreads = {}
-        c.readers = []
-        data = json.loads(json.dumps(c, cls=AlchemyEncoder))
-        expected = {u'query': None, u'query_class': None,
-                    u'bibcode': u'b', u'id': 1, u'coreads': {}, 'readers': []}
-        self.assertEqual(data, expected)
 
 if __name__ == '__main__':
     unittest.main()

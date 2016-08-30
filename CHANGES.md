@@ -1,3 +1,7 @@
+### 1.0.7
+
+* code cleanup
+
 ### 1.0.6
 
 * removal of Consul dependencies
