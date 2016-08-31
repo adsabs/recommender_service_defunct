@@ -18,6 +18,8 @@ RECOMMENDER_ALLOWED_JOURNALS = ['ApJ..','ApJS.','AJ...','MNRAS','A&A..','ARA&A',
 # Specify where the recommender database lives
 SQLALCHEMY_BINDS = {
     'recommender': 'postgresql+psycopg2://user:pwd@localhost:5432/recommender'}
+# Proper handling of database connections
+SQLALCHEMY_COMMIT_ON_TEARDOWN = True
 # In what environment are we?
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'staging').lower()
 # Config for logging
