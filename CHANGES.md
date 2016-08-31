@@ -1,3 +1,7 @@
+### 1.0.8
+
+* SQLALCHEMY_COMMIT_ON_TEARDOWN = True (in config)
+
 ### 1.0.7
 
 * code cleanup
