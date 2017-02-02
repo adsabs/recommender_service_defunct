@@ -20,7 +20,13 @@ class Recommender(Resource):
             return {'msg': 'Unable to get results! (%s)' % err}, 500
 
         if 'Error' in results:
-            current_app.logger.error('Recommender failed (%s): %s'%(bibcode, results.get('Error')))
+            # In case of Solr connection errors, we want to capture more verbose information
+            if 'Reponse Code' in results:
+                error_code = results['Reponse Code']
+                error_msg  = results['Error Info']
+                current_app.logger.error('Recommender failed (Solr request failed) for %s: Solr request returned %s (%s)'%(bibcode, error_code, error_msg))
+            else:
+                current_app.logger.error('Recommender failed (%s): %s'%(bibcode, results.get('Error')))
             return results, results['Status Code']
         else:
             duration = time.time() - stime

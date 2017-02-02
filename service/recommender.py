@@ -79,7 +79,8 @@ def get_normalized_keywords(bibc):
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error",
+        return {"Error": "There was a connection error in Solr request",
+                "Reponse Code": response.status_code,
                 "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     for doc in resp['response']['docs']:
@@ -114,7 +115,8 @@ def get_article_data(biblist, check_references=True):
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error with Solr",
+        return {"Error": "There was a connection error in Solr request",
+                "Reponse Code": response.status_code,
                 "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     results = resp['response']['docs']
@@ -150,7 +152,8 @@ def get_citing_papers(**args):
         current_app.config.get("RECOMMENDER_SOLR_PATH"),
         params=solr_args, headers=headers)
     if response.status_code != 200:
-        return {"Error": "There was a connection error with Solr",
+        return {"Error": "There was a connection error in Solr request",
+                "Reponse Code": response.status_code,
                 "Error Info": response.text, "Status Code": "500"}
     resp = response.json()
     for doc in resp['response']['docs']:

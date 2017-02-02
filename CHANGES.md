@@ -1,3 +1,7 @@
+### 1.0.9
+
+* improved logging for catching Solr communication problems
+
 ### 1.0.8
 
 * SQLALCHEMY_COMMIT_ON_TEARDOWN = True (in config)
