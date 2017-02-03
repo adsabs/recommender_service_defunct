@@ -175,7 +175,7 @@ class TestExpectedResults(TestCase):
         url = url_for('recommender', bibcode='a')
         r = self.client.get(url)
         # The response should have a status code 500
-        self.assertTrue(r.status_code == 500)
+        self.assertTrue(r.status_code == 200)
 
     @httpretty.activate
     def test_recommendations_no_keywords(self):
