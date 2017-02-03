@@ -1,3 +1,7 @@
+### 1.0.10
+
+* update of error handling (in case of exeption, UI will not display anything)
+
 ### 1.0.9
 
 * improved logging for catching Solr communication problems
