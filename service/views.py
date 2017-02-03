@@ -17,7 +17,8 @@ class Recommender(Resource):
             results = get_recommendations(bibcode)
         except Exception, err:
             current_app.logger.error('Recommender exception (%s): %s'%(bibcode, err))
-            return {'msg': 'Unable to get results! (%s)' % err}, 500
+            # If the request for recommendations fails, we just want the UI to ignore and display nothing
+            return {'Error': 'Unable to get results!'}, 200
 
         if 'Error' in results:
             # In case of Solr connection errors, we want to capture more verbose information
@@ -27,7 +28,8 @@ class Recommender(Resource):
                 current_app.logger.error('Recommender failed (Solr request failed) for %s: Solr request returned %s (%s)'%(bibcode, error_code, error_msg))
             else:
                 current_app.logger.error('Recommender failed (%s): %s'%(bibcode, results.get('Error')))
-            return results, results['Status Code']
+            # If the request for recommendations fails, we just want the UI to ignore and display nothing
+            return {'Error': 'Unable to get results!'}, 200
         else:
             duration = time.time() - stime
             current_app.logger.info('Recommendations for %s in %s user seconds'%(bibcode, duration))
