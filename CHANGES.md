@@ -1,3 +1,7 @@
+### 1.0.11
+
+* update requirements.txt and cleanup
+
 ### 1.0.10
 
 * update of error handling (in case of exeption, UI will not display anything)
