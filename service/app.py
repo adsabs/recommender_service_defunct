@@ -1,7 +1,7 @@
 from flask import Flask
 from views import Recommender
-from flask.ext.restful import Api
-from flask.ext.discoverer import Discoverer
+from flask_restful import Api
+from flask_discoverer import Discoverer
 from models import db
 import logging.config
 
