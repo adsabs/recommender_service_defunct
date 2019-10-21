@@ -8,7 +8,7 @@ Jinja2==2.9.5
 Mako==1.0.6
 MarkupSafe==0.23
 SQLAlchemy==1.1.5
-Werkzeug==0.11.15
+Werkzeug==0.15.3
 alembic==0.8.10
 aniso8601==1.2.0
 argparse==1.2.1
