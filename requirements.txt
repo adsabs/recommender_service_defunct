@@ -37,7 +37,7 @@ pytz==2016.10
 requests==2.13.0
 simplejson==3.10.0
 six==1.5.2
-supervisor==3.3.0
+supervisor==3.3.3
 urllib3==1.7.1
 wheel==0.24.0
 wsgiref==0.1.2
